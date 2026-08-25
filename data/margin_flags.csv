@@ -1,0 +1,2 @@
+product,effective_date,notice_date,initial_margin,maintenance_margin,source_file,prev_maintenance_margin,prev_business_date,margin_short,prev_margin_short,pct_change,direction,tier_code,n_tiers_changed,n_tiers_total,frac_tiers_shift_match,likely_roll_shift,methodology_transition,is_series_start,flag_reason
+CL,2023-10-20,,,6887.0,CL-2023-to-present.pdf,6600.0,2023-10-19,6545.0,,0.04348484848484846,increase,CL-1,124,124,0.0,False,True,False,SPAN->SPAN2 file boundary
