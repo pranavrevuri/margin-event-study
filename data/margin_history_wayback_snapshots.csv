@@ -29,8 +29,6 @@ product,effective_date,maintenance,margin_short,prev_maintenance,direction,sourc
 6J,2016-06-27,3650.0,,2950.0,increase,JY_2014_to_present.pdf,20171129082046
 6J,2016-07-01,4100.0,,3650.0,increase,JY_2014_to_present.pdf,20171129082046
 6J,2016-10-07,4500.0,,4100.0,increase,JY_2014_to_present.pdf,20171129082046
-6J,2017-01-02,0.0,,4500.0,decrease,JY_2014_to_present.pdf,20171129082046
-6J,2017-01-04,4500.0,,0.0,increase,JY_2014_to_present.pdf,20171129082046
 6J,2017-01-13,4000.0,,4500.0,decrease,JY_2014_to_present.pdf,20171129082046
 6J,2017-03-17,3300.0,,4000.0,decrease,JY_2014_to_present.pdf,20171129082046
 6J,2017-05-12,3000.0,,3300.0,decrease,JY_2014_to_present.pdf,20171129082046
@@ -980,8 +978,8 @@ SP_fullsize,2024-12-16,14855.0,14747.0,14863.0,decrease,SP-2024-to-present.pdf,2
 SP_fullsize,2024-12-17,14867.0,14735.0,14855.0,increase,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2024-12-18,15244.0,14661.0,14867.0,increase,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2024-12-19,15246.0,14658.0,15244.0,increase,SP-2024-to-present.pdf,20251026205709
-SP_fullsize,2024-12-20,0.0,0.0,15246.0,decrease,SP-2024-to-present.pdf,20251026205709
-SP_fullsize,2024-12-23,15211.0,14697.0,0.0,increase,SP-2024-to-present.pdf,20251026205709
+SP_fullsize,2024-12-20,15223.0,14684.0,15246.0,decrease,SP-2024-to-present.pdf,20251026205709
+SP_fullsize,2024-12-23,15211.0,14697.0,15223.0,decrease,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2024-12-24,15196.0,14725.0,15211.0,decrease,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2024-12-26,15192.0,14717.0,15196.0,decrease,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2024-12-27,15219.0,14688.0,15192.0,increase,SP-2024-to-present.pdf,20251026205709
@@ -1038,8 +1036,8 @@ SP_fullsize,2025-03-17,15597.0,14652.0,15569.0,increase,SP-2024-to-present.pdf,2
 SP_fullsize,2025-03-18,15552.0,14581.0,15597.0,decrease,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2025-03-19,15619.0,14667.0,15552.0,increase,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2025-03-20,15570.0,14621.0,15619.0,decrease,SP-2024-to-present.pdf,20251026205709
-SP_fullsize,2025-03-21,0.0,0.0,15570.0,decrease,SP-2024-to-present.pdf,20251026205709
-SP_fullsize,2025-03-24,15771.0,14831.0,0.0,increase,SP-2024-to-present.pdf,20251026205709
+SP_fullsize,2025-03-21,15601.0,14645.0,15570.0,increase,SP-2024-to-present.pdf,20251026205709
+SP_fullsize,2025-03-24,15771.0,14831.0,15601.0,increase,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2025-03-25,15744.0,14817.0,15771.0,decrease,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2025-03-26,15702.0,14743.0,15744.0,decrease,SP-2024-to-present.pdf,20251026205709
 SP_fullsize,2025-03-27,15651.0,14693.0,15702.0,decrease,SP-2024-to-present.pdf,20251026205709

@@ -153,6 +153,8 @@ def parse_old_a(doc, product, src, ts):
             label = re.sub(r"\s+", " ", label.replace("...", " ").strip().rstrip(".").strip())
             if cur_date is None:
                 exceptions.append((src, "OLD-A", " | ".join(toks[i:i + 4]), "rate row before any date"))
+            elif maint_v <= 0 or init_v < 0:
+                exceptions.append((src, "OLD-A", " | ".join(toks[i:i + 4]), "non-positive margin; parse artifact, excluded"))
             else:
                 bl = base_label(label)
                 seq_counter[(cur_date, bl)] = seq_counter.get((cur_date, bl), 0) + 1
@@ -268,9 +270,13 @@ def parse_new_snapshot(doc, product, src, ts):
             if len(nums) not in (1, 2) or not all(NUM_PLAIN.match(x) for x in nums):
                 exceptions.append((src, "NEW", " | ".join(r), "margin tokens not 1-2 numerics"))
                 continue
+            margin_val = float(nums[0].replace(",", ""))
+            if margin_val <= 0:
+                exceptions.append((src, "NEW", " | ".join(r), "non-positive margin value; parse artifact, excluded"))
+                continue
             snapshot_rows.append(dict(
                 product=product, business_date=r[0], tier_idx=int(mt.group(2)),
-                margin=float(nums[0].replace(",", "")),
+                margin=margin_val,
                 margin_short=float(nums[1].replace(",", "")) if len(nums) == 2 else None,
                 source_file=src, capture_ts=ts))
 
