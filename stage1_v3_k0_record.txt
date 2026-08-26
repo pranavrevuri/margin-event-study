@@ -1,0 +1,40 @@
+A3 event-set identity check vs events_v2.csv: IDENTICAL (201 events)
+==============================================================================
+STAGE 1 v3 HYGIENE [analysis span: per-product binding start -> 2024-03-28]
+  scale check SI: stooq/100 vs pst, median |diff| = 0.457% over 179 days (PASS: same price level, 100x convention confirmed)
+  scale check HG: stooq/100 vs pst, median |diff| = 0.179% over 186 days (PASS: same price level, 100x convention confirmed)
+  SILVER contract-size resolution:
+    (i)  series starts 1970-06-15 — decades before the 1,000-oz contract's 2013 launch: PASS
+    (ii) exact settlement matches to stooq SI.F (COMEX 5,000 oz SI) on same-contract days: 3 found: PASS
+    (iii) mismatch pattern vs GOLD benchmark (serial-month interposition on stooq side): median |diff| SI 0.72% vs GC 0.09%: FAIL
+    -> UNRESOLVED -> per conduct rule, SI excluded under the K0 product-drop rule
+  per-product settlement cross-check (dates 5-30 td after a pst roll, front-aligned):
+    ZN: 13/20 within 0.1%; 7 flagged (>0.1%, incl. contract-mismatch days)
+    6E: 20/20 within 0.1%; 0 flagged (>0.1%, incl. contract-mismatch days)
+    6J: 17/20 within 0.1%; 3 flagged (>0.1%, incl. contract-mismatch days)
+    GC: 6/20 within 0.1%; 14 flagged (>0.1%, incl. contract-mismatch days)
+    SI: 0/20 within 0.1%; 20 flagged (>0.1%, incl. contract-mismatch days)
+    HG: 4/20 within 0.1%; 16 flagged (>0.1%, incl. contract-mismatch days)
+  window-hole check: 20 events excluded for in-window missing prices (explicit, logged); none silent
+  A4 completeness-fallback selections (genuine FORWARD settlements, no imputation): 10 total; per product: {'6E': 3, '6J': 2, 'GC': 4, 'ZN': 1}
+  >200% margin-jump conduct flags within event inputs: 0 
+  HG May-contract substitutions (A4): 0
+==============================================================================
+K0 GATES [6 declared products; spans: binding start -> 2024-03-28]
+
+per-product qualifying clustered events / window-completeness survival:
+  ZN:  36 events,  34 survive (94.4%)
+  6E:  34 events,  32 survive (94.1%)
+  6J:  36 events,  35 survive (97.2%)
+  GC:  30 events,  29 survive (96.7%)
+  SI:  35 events,  21 survive (60.0%)
+  HG:  30 events,  29 survive (96.7%)
+
+conduct-rule exclusion: SI (price-series identity unresolved); its completeness, reported separately per A0.2: 21/35 (60.0%)
+
+GATE 1  total qualifying clustered events (full span, 6 declared products): 201  vs >= 180  -> PASS
+GATE 2  pilot qualifying clustered events (binding start -> 2014-12-31): 93  vs >= 50  -> PASS
+GATE 3  window-completeness survival over post-conduct-exclusion universe (6E/6J/GC/HG/ZN): 95.8% vs >= 90%; products <70% dropped: none; remaining products: 5 (>=5), surviving events: 159 (>=150)  -> PASS
+
+K0: ALL GATES PASS. Stage 1 complete; stopping before any Stage 2 computation.
+Per Part B step 4: HARD STOP — commit the Stage-1 record; Stage 2 (pilot) runs only on explicit human trigger.
