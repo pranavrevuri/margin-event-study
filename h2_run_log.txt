@@ -1,0 +1,38 @@
+==============================================================================
+H2 SAMPLE [entry dates 2015-01-01 -> 2024-03-28; committed events_v3.csv; no new construction]
+product  in window  included  excluded
+6E              11         9         2
+6J              11        10         1
+GC              22        21         1
+HG              23        22         1
+ZN              19        17         2
+TOTAL           86        79         7
+SI (conduct-excluded, attrition only): 22 events in window, 17 with complete windows — no SILVER price loads, no SI return computed
+entry-vs-effective window-membership deviations (R2): 0
+excluded-event reasons (5-product universe): {'selected contract missing 1 of 33 window days': 1, 'selected contract missing 1 of 33 window days (FORWARD fallback also incomplete)': 1, 'selected contract missing 2 of 33 window days (FORWARD fallback also incomplete)': 1, 'selected contract missing 3 of 33 window days (FORWARD fallback also incomplete)': 1, 'selected contract missing 4 of 33 window days (FORWARD fallback also incomplete)': 1, 'selected contract missing 6 of 33 window days (FORWARD fallback also incomplete)': 1, 'trailing return exactly zero (v1 A4 exclusion)': 1}
+A4 completeness-fallback events in sample: 9
+
+SAMPLE FLOOR: 79 included events vs preregistered minimum 40 -> PASS
+Stage-1 reproduction check: all 79 H2 events match the committed events_v3.csv (contract, fallback flag, trailing return, trailing vol)
+  control pool 6E [2015-01-01 -> 2024-03-28]: 2381 trading days, 626 within +/-15 td of a margin change, 338 unselectable/incomplete, 4 zero-trailing -> 1413 candidates (408 via completeness fallback)
+  control pool 6J [2015-01-01 -> 2024-03-28]: 2436 trading days, 817 within +/-15 td of a margin change, 281 unselectable/incomplete, 4 zero-trailing -> 1334 candidates (142 via completeness fallback)
+  control pool GC [2015-01-01 -> 2024-03-28]: 2425 trading days, 1244 within +/-15 td of a margin change, 177 unselectable/incomplete, 1 zero-trailing -> 1003 candidates (149 via completeness fallback)
+  control pool HG [2015-01-01 -> 2024-03-28]: 2672 trading days, 1323 within +/-15 td of a margin change, 18 unselectable/incomplete, 10 zero-trailing -> 1321 candidates (50 via completeness fallback)
+  control pool ZN [2015-01-01 -> 2024-03-28]: 2428 trading days, 1080 within +/-15 td of a margin change, 130 unselectable/incomplete, 4 zero-trailing -> 1214 candidates (112 via completeness fallback)
+==============================================================================
+H2 ONE-SHOT VERDICT [entry 2015-01-01 -> 2024-03-28; 5-product universe]
+  events: 79 included; matched: 78; unmatched: 1 (1.3%)
+  D (event minus matched-control mean) = 2.09 bps; 95% bootstrap CI [-62.05, 69.05] (monthly blocks, 43 months, 10,000 draws)
+  G (mean event return)               = -37.33 bps
+  split: D(2015–2020) = -31.80 bps over 44 matched; D(2021–2024.03) = 45.96 bps over 34 matched
+  concentration: per-product contribution to D (sum of diffs, bps): 6E=-345.7, 6J=-8.5, GC=748.0, HG=-1508.6, ZN=1278.2
+  largest |contribution|: HG; D excluding HG = 29.86 bps over 56 matched
+  C1 (vol test):            D = 2.09 bps vs >= +15 bps -> FAIL
+  C2 (cost test):           G = -37.33 bps vs >= +10 bps -> FAIL
+  C3 (decay test):          D(2021–2024.03) = 45.96 bps vs >= +10 bps AND >= 40% of D(2015–2020) (= -12.72 bps) -> PASS
+  C4 (concentration floor): D excluding HG = 29.86 bps vs >= +5 bps -> PASS
+  fragility (non-fatal): drop 2020 -> D = 31.56 bps (16 events dropped)
+  fragility (non-fatal): drop 2022 -> D = 3.72 bps (15 events dropped)
+H2_FAIL written.
+"The continuation strategy failed its preregistered one-shot test on previously untouched 2015–2024 data (C1 vol test: D = 2.1 bps vs. +15 bps; C2 cost test: G = -37.3 bps vs. +10 bps); combined with the reversal hypothesis's earlier preregistered failure, margin-increase events show no exploitable multi-day return signal in either direction, and no margin-based strategy will be pitched."
+h2_results.md written. H2 one-shot complete — no further runs of any kind in this session.
