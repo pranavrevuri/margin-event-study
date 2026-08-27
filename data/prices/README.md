@@ -68,3 +68,16 @@ frequency: monthly for CL, bimonthly GC, ~5/yr ZC/ZS/SI/HG, quarterly ZN/6E/6J â
 so a nontrivial fraction of windows WILL contain a roll, and roll dates are not
 published for this series. This is why substitution requires an explicit decision,
 not a silent swap.
+
+## Auxiliary series for the Path 2 beta/correlation exhibit (added 2026-08-26)
+
+`stooq_ES_continuous_close.csv`, `stooq_SPY_adjusted_close.csv`,
+`stooq_AGG_adjusted_close.csv` â€” date,close only. Same Stooq chart endpoint
+(`/q/a2/d/?s=<sym>&i=d`, paged backward with `&f=`, real browser session),
+symbols es.f, spy.us, agg.us. Used ONLY by scripts/exposure_beta_exhibit.py
+(equity beta / bond correlation of the finished backtest); never a strategy
+input. Notes: es.f is an unadjusted front-month splice (quarterly roll jumps);
+spy.us/agg.us are dividend-adjusted closes and Stooq's free US-ETF depth stops
+at 2005-02-25; Stooq's cash S&P 500 symbol (^SPX) was renamed ^USLC and its
+free daily history now starts 2013, hence the futures series for the full
+sample.
