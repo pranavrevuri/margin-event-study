@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Path 2 backtest per strategy_spec_v1.md (binding). Steps 2-5 of the build prompt.
+Path 2 backtest per strategy_spec_v1.md (binding): weekly trend signal,
+margin-aware vol sizing, both variants, costs, integer pass, 2x cost pass.
+Reads: data/prices_pst/ (adjusted, multiple), data/prices/stooq_*.csv,
+data/margin_history_stitched.csv, data/events_v3.csv (identity assert only).
+Writes: strategy_results.md (base report) + 3 PNGs (equity, drawdown, SI 2011).
 
-Implements §2-§6 exactly; every §7 output written to strategy_results.md plus
-PNG charts. Interpretive decisions (all logged in the results file §"Implementation
+Interpretive decisions (all logged in the results file "Implementation
 log"; conservative reading per §8):
   R1  Roll dates = PRICE_CONTRACT switch dates in multiple/*.csv (user-confirmed;
       committed roll_calendars end 2020-2022, before data end; switches match the
@@ -40,7 +43,6 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 
 REPO = Path(__file__).resolve().parent.parent
 DATA = REPO / "data"
@@ -121,11 +123,10 @@ def td_shift(prod, d, k):
 
 
 # margin level step function on each market calendar (effective date forward only)
-margin_level, margin_first = {}, {}
+margin_level = {}
 for p in ORDER:
     g = margin[margin["product"] == p].drop_duplicates("effective_date", keep="last")
     lv = g.set_index("effective_date").maintenance.astype(float)
-    margin_first[p] = lv.index.min()
     idx = sorted(set(cal[p]) | set(lv.index))
     margin_level[p] = lv.reindex(idx).ffill().reindex(cal[p])
     # no-lookahead assert: level at any date equals last effective <= date
@@ -300,6 +301,7 @@ def run_market(p, variant, integer=False):
     return out, dg
 
 
+# run every market under both variants; keep overlay sizing diagnostics
 VARIANTS = {}
 diags = {}
 for variant in ["overlay", "baseline"]:
@@ -327,6 +329,7 @@ PORT["baseline_2x"] = portfolio(VARIANTS["baseline"], 2.0)
 PORT["integer"] = portfolio(INT_PASS)
 
 
+# headline stats on a daily $ P&L series (returns = P&L / fixed capital, R8)
 def metrics(pnl):
     r = pnl / CAPITAL
     n = len(r)
@@ -374,6 +377,7 @@ plt.rcParams.update({"font.size": 10, "axes.edgecolor": "#cccccc",
                      "axes.facecolor": "white"})
 DT = pd.to_datetime(all_days)
 
+# chart 1: cumulative P&L, gross and net, both variants
 fig, ax = plt.subplots(figsize=(10, 5.5))
 series = [("overlay", "net", BLUE, "-", 1.9, "overlay net"),
           ("overlay", "gross", BLUE, "--", 1.1, "overlay gross"),
@@ -394,6 +398,7 @@ fig.tight_layout()
 fig.savefig(REPO / "equity_curves_path2.png", dpi=150)
 plt.close(fig)
 
+# chart 2: drawdown from high-water mark, net, both variants
 fig, ax = plt.subplots(figsize=(10, 3.8))
 for v, c, lbl in [("overlay", BLUE, "overlay"), ("baseline", ORANGE, "baseline")]:
     r = PORT[v].net.cumsum() / CAPITAL
@@ -410,7 +415,7 @@ fig.tight_layout()
 fig.savefig(REPO / "drawdown_path2.png", dpi=150)
 plt.close(fig)
 
-# overlay diagnostic: SI positions around the 2011 silver episode
+# chart 3: overlay diagnostic — SI positions around the 2011 silver episode
 p = "SI"
 w0, w1 = "2010-09-01", "2012-03-31"
 win = [d for d in all_days if w0 <= d <= w1 and d in VARIANTS["overlay"][p].index]

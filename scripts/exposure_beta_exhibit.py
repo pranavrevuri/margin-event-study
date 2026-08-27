@@ -7,6 +7,7 @@ adjusted ETF closes).
 Writes: two sections appended to strategy_results.md — (1) time in market and
 capital utilization, (2) beta/correlation to equities and bonds.
 """
+import re
 import runpy
 from pathlib import Path
 
@@ -65,6 +66,7 @@ def load_close(name):
 port_net = bt["PORT"]["overlay"].net / CAPITAL
 base_net = bt["PORT"]["baseline"].net / CAPITAL
 
+# plain OLS of y on x: beta, classical-SE 95% CI, R-squared, correlation
 def ols(y, x):
     y = np.asarray(y, dtype=float)
     x = np.asarray(x, dtype=float)
@@ -84,11 +86,13 @@ es = load_close("stooq_ES_continuous_close.csv").pct_change().dropna()
 spy = load_close("stooq_SPY_adjusted_close.csv").pct_change().dropna()
 agg = load_close("stooq_AGG_adjusted_close.csv").pct_change().dropna()
 
+# match strategy-return days to market-return days (intersection of calendars)
 def aligned(ret, mkt):
     idx = ret.index.intersection(mkt.index)
     return ret[idx], mkt[idx]
 
 
+# regressions: full sample + four sub-periods vs ES; SPY/AGG comparisons
 rows = []
 y, x = aligned(port_net, es)
 full = ols(y, x)
@@ -183,10 +187,10 @@ period-by-period: in 2021–2024.03 the correlation to AGG was
 through the 2022 hiking cycle — a real, if episodic, bond-direction exposure.
 """
 
+# drop only this script's old sections (if present), then re-append at the end
 text = RESULTS.read_text()
 for mark in (MARK_A, MARK_B):
-    if mark in text:
-        text = text[:text.index(mark)].rstrip() + "\n"
+    text = re.sub(re.escape(mark) + r".*?(?=\n## |\Z)", "", text, flags=re.S)
 RESULTS.write_text(text.rstrip() + "\n\n" + sec_a + sec_b)
 print(f"time-in-market {tim_port*100:.1f}% | gross expo {avg_gross*100:.0f}% | "
       f"margin used {avg_margin*100:.2f}% (clean {avg_margin_clean*100:.2f}%)")

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Add-on exhibit — NO change to strategy logic. From the overlay variant's net
-daily returns (recomputed by running the committed backtest_path2.py
-unchanged), generate 1,000 alternative equity curves via a stationary block
-bootstrap (Politis-Romano: geometric block lengths, mean 21 trading days,
-wrap-around, seed 42), plot them under the actual curve, and report the
-percentile of the actual terminal P&L within the simulated distribution.
-Appends its section to strategy_results.md idempotently.
+Add-on exhibit — NO change to strategy logic. Stationary block bootstrap
+(Politis-Romano, mean 21-td blocks, seed 42) of the overlay's net daily
+returns: 1,000 resampled equity curves vs the actual one.
+Reads: the committed backtest (rerun unchanged via backtest_path2.py).
+Writes: monte_carlo_exhibit.png + one section appended to strategy_results.md.
 """
+import re
 import runpy
 from pathlib import Path
 
@@ -17,9 +16,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 REPO = Path(__file__).resolve().parent.parent
+RESULTS = REPO / "strategy_results.md"
 SECTION_MARK = "## Add-on exhibit: block-bootstrap Monte Carlo"
 
+# the backtest rewrites strategy_results.md from scratch; snapshot and restore
+# so sections appended by other exhibit scripts survive a rerun of this one
+snapshot = RESULTS.read_text()
 bt = runpy.run_path(REPO / "scripts/backtest_path2.py")
+RESULTS.write_text(snapshot)
 net = bt["PORT"]["overlay"].net            # daily net $ P&L, overlay variant
 CAPITAL = bt["CAPITAL"]
 r = (net / CAPITAL).to_numpy()             # daily net return on capital
@@ -42,6 +46,7 @@ def stationary_bootstrap_indices():
     return np.concatenate(idx)
 
 
+# simulate 1,000 resampled cumulative curves; percentile of the actual terminal
 paths = np.empty((N_PATHS, n))
 for k in range(N_PATHS):
     paths[k] = np.cumsum(r[stationary_bootstrap_indices()])
@@ -98,11 +103,10 @@ outcome is sequencing — not an independent test of the strategy.
 ![Monte Carlo](monte_carlo_exhibit.png)
 """
 
-res = REPO / "strategy_results.md"
-text = res.read_text()
-if SECTION_MARK in text:                    # idempotent re-append
-    text = text[:text.index(SECTION_MARK)].rstrip() + "\n"
-res.write_text(text.rstrip() + "\n\n" + section)
+# drop only this script's old section (if present), then re-append at the end
+text = re.sub(re.escape(SECTION_MARK) + r".*?(?=\n## |\Z)", "",
+              RESULTS.read_text(), flags=re.S)
+RESULTS.write_text(text.rstrip() + "\n\n" + section)
 print(f"\nactual terminal {actual[-1]*100:.2f}% of capital = {pct:.1f}th percentile "
       f"of {N_PATHS} paths (sim 5/50/95: {q05*100:.1f}/{q50*100:.1f}/{q95*100:.1f}%)")
 print("wrote monte_carlo_exhibit.png and appended section to strategy_results.md")

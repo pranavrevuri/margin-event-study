@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Add-on exhibit — NO change to strategy logic. Bar chart of calendar-year net
-returns (% of $500K capital) for the overlay variant, from the committed
-backtest_path2.py rerun unchanged. Saves annual_returns_path2.png.
+returns (% of $500K capital) for the overlay variant.
+Reads: the committed backtest (rerun unchanged via backtest_path2.py).
+Writes: annual_returns_path2.png only (strategy_results.md left untouched).
 """
 import runpy
 from pathlib import Path
@@ -12,10 +13,17 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 REPO = Path(__file__).resolve().parent.parent
+RESULTS = REPO / "strategy_results.md"
+
+# the backtest rewrites strategy_results.md from scratch; snapshot and restore
+# so the report (with its appended exhibit sections) is left exactly as found
+snapshot = RESULTS.read_text()
 bt = runpy.run_path(REPO / "scripts/backtest_path2.py")
+RESULTS.write_text(snapshot)
 net = bt["PORT"]["overlay"].net
 CAPITAL = bt["CAPITAL"]
 
+# sum net daily P&L by calendar year, in % of capital (2024 is a partial year)
 years = sorted(set(d[:4] for d in net.index))
 ann = {y: net[[d for d in net.index if d.startswith(y)]].sum() / CAPITAL * 100
        for y in years}

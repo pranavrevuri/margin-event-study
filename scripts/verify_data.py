@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 Path 2 backtest — STEP 1: data verification pass. NO P&L computed.
-Per strategy_spec_v1.md build prompt step 1: load the 9 adjusted series,
-roll calendars, Stooq unadjusted series, stitched margin history; print
-coverage, point sizes/tick values, roll counts per market-year, qualifying
-margin events per market-year. Then stop for user confirmation.
+Reads: data/prices_pst/ (adjusted, multiple, roll_calendars),
+data/prices/stooq_*.csv, data/margin_history_stitched.csv, data/events_v3.csv.
+Writes: nothing — prints coverage, point/tick tables, roll counts, qualifying
+events per market-year, and the events_v3 identity cross-check, then stops.
 """
 from pathlib import Path
 import pandas as pd
@@ -71,11 +71,6 @@ for prod, instr in PRODUCTS.items():
 
 margin = pd.read_csv(DATA / "margin_history_stitched.csv")
 margin = margin[margin["product"].isin(PRODUCTS)].sort_values(["product", "effective_date"])
-
-# product trading calendar = adjusted-series dates (for 10-td event clustering)
-cal = {p: [d for d in adj[p].index if d <= SPAN_END] for p in ORDER}
-calpos = {p: {d: i for i, d in enumerate(cal[p])} for p in ORDER}
-
 
 def td_shift(prod, d, k):
     """trading-day arithmetic on the stage1 event calendar (d snapped forward)"""
