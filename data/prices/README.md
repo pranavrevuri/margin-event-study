@@ -81,3 +81,23 @@ spy.us/agg.us are dividend-adjusted closes and Stooq's free US-ETF depth stops
 at 2005-02-25; Stooq's cash S&P 500 symbol (^SPX) was renamed ^USLC and its
 free daily history now starts 2013, hence the futures series for the full
 sample.
+
+## Full-sample S&P 500 series for the packaging beta (added 2026-09-02)
+
+`yahoo_SPY_daily_close.csv` (date, close, adj_close) and
+`yahoo_GSPC_daily_close.csv` (date, close) — written by
+`scripts/fetch_yahoo_sp500.py`: Yahoo Finance daily history via yfinance 1.5.2
+(free, keyless; the library performs Yahoo's cookie/crumb handshake — a bare
+curl of the same v8 chart endpoint is answered with HTTP 429), symbols SPY and
+^GSPC, 2000-12-01 → 2024-03-28, 5,866 rows each. Used ONLY by
+`scripts/packaging_beta_lomo.py` for the full-sample beta/correlation of the
+finished backtest; never a strategy input. Notes: `adj_close` is Yahoo's
+dividend-adjusted SPY close — Yahoo rescales the whole adjusted history each
+time a new dividend is paid, so absolute levels differ between downloads while
+daily returns do not; ^GSPC is the cash index price level (no dividends). Vendor
+check against `stooq_SPY_adjusted_close.csv` on the 2005-02-28+ overlap:
+daily-return correlation 0.9989; 36 of 4,803 days differ by more than 10 bp.
+The largest (2015-03-12/13, ~2%) is a displaced Stooq print — Yahoo's raw and
+adjusted closes agree with each other there — and the two vendors agree on the
+2015-03-20 ex-dividend day, so the rest are rounding and adjustment-timing
+noise; none moves the regression (see strategy_results.md).

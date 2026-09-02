@@ -34,14 +34,21 @@ internally and preserves the report sections already appended):
 3. `scripts/monte_carlo_exhibit.py` — bootstrap exhibit (appends section + PNG)
 4. `scripts/annual_returns_exhibit.py` — annual-returns bar chart PNG
 5. `scripts/exposure_beta_exhibit.py` — time-in-market and equity/bond beta sections
+6. `scripts/fetch_yahoo_sp500.py` — Yahoo SPY/^GSPC closes for the full-sample
+   S&P 500 beta (output committed under `data/prices/`; rerun only to refresh)
+7. `scripts/packaging_beta_lomo.py` — beta/correlation vs the S&P 500 over the
+   full sample and the leave-one-market-out table
+8. `scripts/exhibit_restyle.py` — FIG1–FIG4 and TABLE1 PNGs assembled in
+   [exhibits.md](exhibits.md)
 
 ## Where the data comes from
 
 - `data/prices_pst/` — pysystemtrade repository (GPL-3.0; Barchart/IB-collected)
   per-contract settlements, panama-adjusted series, roll calendars; ends 2024-03-28.
 - `data/prices/` — Stooq continuous futures (research-grade, cross-validation +
-  notional convention) and the auxiliary ES/SPY/AGG closes for the beta exhibit;
-  provenance and caveats in [data/prices/README.md](data/prices/README.md).
+  notional convention), the auxiliary Stooq ES/SPY/AGG closes and the Yahoo
+  SPY/^GSPC closes for the beta exhibits; provenance and caveats in
+  [data/prices/README.md](data/prices/README.md).
 - `data/margin_history_stitched.csv` — CME maintenance margins stitched from
   Wayback-archived history PDFs, clearing advisories, and daily snapshots;
   construction and conflict handling in `scripts/stitch_coverage.py` and
