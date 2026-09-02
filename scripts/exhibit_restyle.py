@@ -253,73 +253,88 @@ PNL_COLS = sorted(pnl.items(), key=lambda kv: -kv[1])
 CAPTION = ("Table 1.", " Backtest summary, 2001–2024, $500K, "
            "net of modeled costs.")
 
-# layout in inches from the top-left corner; 150 dpi via rcParams
-W, H = 11.0, 4.75
-L, R = 0.55, W - 0.55
-PAD = 0.22
+# Printed-table styling: serif (the report body face), black on white only,
+# booktabs-style three rules (above the header, below it, below the body) plus
+# thin separators between the four column groups; the two sub-tables get the
+# same three-rule treatment as independent tables. Layout in inches from the
+# top-left corner; 150 dpi via rcParams.
+FONT = "Times New Roman"          # Regular, Bold and Italic faces installed
+BLACK = "#000000"
+OUTER, INNER = 0.8, 0.5           # rule weights (pt): top/bottom vs mid/vertical
+FS_H, FS_B = 10, 9.5              # header / body point sizes
+ROW = 0.225                       # body row pitch
+W, H = 9.4, 3.2
+L, R = 0.45, W - 0.45
+PAD = 0.10
 fig = plt.figure(figsize=(W, H))
 X = lambda x: x / W
 Y = lambda y: 1 - y / H
 
 
 def txt(x, y, s, **kw):
+    kw.setdefault("fontfamily", FONT)
+    kw.setdefault("color", BLACK)
     return fig.text(X(x), Y(y), s, **kw)
 
 
-def rule(x0, y0, x1, y1, **kw):
-    fig.add_artist(Line2D([X(x0), X(x1)], [Y(y0), Y(y1)],
-                          transform=fig.transFigure, **kw))
+def rule(x0, y0, x1, y1, lw):
+    fig.add_artist(Line2D([X(x0), X(x1)], [Y(y0), Y(y1)], color=BLACK, lw=lw,
+                          solid_capstyle="butt", transform=fig.transFigure))
 
-
-HEAVY = dict(color=NAVY, lw=1.8, solid_capstyle="butt")
-THIN = dict(color="#cccccc", lw=0.8)
 
 # main table: four groups side by side
 gw = (R - L) / len(GROUPS)
-y_head, y_rule, y_row0, dy = 0.66, 0.80, 1.14, 0.345
-y_bot = y_row0 + (len(GROUPS[0][1]) - 1) * dy + 0.20
-rule(L, y_rule, R, y_rule, **HEAVY)
+y_top = 0.28
+y_head = y_top + 0.15             # header row centre
+y_mid = y_head + 0.15
+y_row0 = y_mid + 0.15
+y_bot = y_row0 + (len(GROUPS[0][1]) - 1) * ROW + 0.14
+rule(L, y_top, R, y_top, OUTER)
+rule(L, y_mid, R, y_mid, INNER)
+rule(L, y_bot, R, y_bot, OUTER)
 for g, (title, rows) in enumerate(GROUPS):
     x0, x1 = L + g * gw, L + (g + 1) * gw
     if g:
-        rule(x0, y_head - 0.22, x0, y_bot, **THIN)
-    txt(x0 + PAD, y_head, title, fontsize=10.5, fontweight="bold", color=INK,
-        va="baseline")
+        rule(x0, y_top, x0, y_bot, INNER)
+    txt(x0 + PAD, y_head, title, fontsize=FS_H, fontweight="bold", va="center")
     for i, (name, val) in enumerate(rows):
-        y = y_row0 + i * dy
-        txt(x0 + PAD, y, name, fontsize=9.5, color=FAINT, va="center")
-        txt(x1 - PAD, y, val, fontsize=10, color=INK, fontweight="bold",
-            ha="right", va="center")
+        y = y_row0 + i * ROW
+        txt(x0 + PAD, y, name, fontsize=FS_B, va="center")
+        txt(x1 - PAD, y, val, fontsize=FS_B, fontweight="bold", ha="right",
+            va="center")
 
-# two compact sub-tables side by side, same style
-y_head2 = y_bot + 0.56
-y_rule2 = y_head2 + 0.14
-y_lab2, y_val2 = y_rule2 + 0.30, y_rule2 + 0.62
-y_bot2 = y_val2 + 0.20
-x_split = L + (R - L) * 0.43          # room for the 2021–2024.03 label
-rule(L, y_rule2, R, y_rule2, **HEAVY)
-rule(x_split, y_head2 - 0.22, x_split, y_bot2, **THIN)
+# two compact sub-tables side by side, each its own three-rule table
+y_top2 = y_bot + 0.26
+y_head2 = y_top2 + 0.15
+y_mid2 = y_head2 + 0.15
+y_lab2 = y_mid2 + 0.15
+y_val2 = y_lab2 + ROW
+y_bot2 = y_val2 + 0.14
+GAP = 0.35
+x_split = L + (R - L - GAP) * 0.46       # room for the 2021–2024.03 label
 for title, cols, x0, x1 in [
         ("Sub-period net Sharpe", sub_sharpe, L, x_split),
         ("Per-market net P&L ($K)", [(p, f"{v:.1f}") for p, v in PNL_COLS],
-         x_split, R)]:
-    txt(x0 + PAD, y_head2, title, fontsize=10.5, fontweight="bold", color=INK,
-        va="baseline")
+         x_split + GAP, R)]:
+    rule(x0, y_top2, x1, y_top2, OUTER)
+    rule(x0, y_mid2, x1, y_mid2, INNER)
+    rule(x0, y_bot2, x1, y_bot2, OUTER)
+    txt(x0 + PAD, y_head2, title, fontsize=FS_H, fontweight="bold", va="center")
     cw = (x1 - x0 - 2 * PAD) / len(cols)
     for j, (lab, val) in enumerate(cols):
         xr = x0 + PAD + (j + 1) * cw
-        txt(xr, y_lab2, lab, fontsize=9, color=FAINT, ha="right", va="center")
-        txt(xr, y_val2, val, fontsize=10, color=INK, fontweight="bold",
-            ha="right", va="center")
+        txt(xr, y_lab2, lab, fontsize=FS_B, ha="right", va="center")
+        txt(xr, y_val2, val, fontsize=FS_B, fontweight="bold", ha="right",
+            va="center")
 
-# caption: bold figure number, regular text placed flush after it
-y_cap = y_bot2 + 0.46
-lead = txt(L, y_cap, CAPTION[0], fontsize=9, fontweight="bold", color=INK,
+# caption: italic label, regular text flush after it, left-aligned
+y_cap = y_bot2 + 0.30
+lead = txt(L, y_cap, CAPTION[0], fontsize=FS_B, fontstyle="italic",
            va="baseline")
 fig.canvas.draw()
 bb = lead.get_window_extent(fig.canvas.get_renderer())
 x_after = fig.transFigure.inverted().transform((bb.x1, 0))[0]
-txt(x_after * W, y_cap, CAPTION[1], fontsize=9, color=INK, va="baseline")
+txt(x_after * W, y_cap, CAPTION[1], fontsize=FS_B, va="baseline")
 
 fig.savefig(REPO / "FIG_summary_table.png")
 plt.close(fig)
