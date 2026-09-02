@@ -43,7 +43,7 @@ INK = "#333333"
 FAINT = "#777777"
 plt.rcParams.update({
     "font.family": "sans-serif",
-    "font.sans-serif": ["Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans"],
+    "font.sans-serif": ["Arial", "Helvetica Neue", "Helvetica", "DejaVu Sans"],
     "font.size": 10,
     "axes.edgecolor": "#cccccc",
     "axes.labelcolor": INK,
@@ -61,7 +61,9 @@ plt.rcParams.update({
     "axes.facecolor": "white",
     "savefig.dpi": 150,
 })
-# NB: Helvetica lacks the U+2192 arrow glyph — use an en dash in date ranges
+# Arial: metrically a Helvetica clone with a real Bold face installed —
+# matplotlib sees only the regular face inside the HelveticaNeue .ttc, so bold
+# titles/values there rendered regular. Date ranges use an en dash, not U+2192.
 SUB_FULL = ("2001-01-02 – 2024-03-28 · 9 CME futures markets · $500K capital · "
             "net of costs, no compounding")
 
@@ -221,7 +223,7 @@ pnl = {p: float(md_row(mkts, p)[0])
 subp = md_section(snapshot, "5. Sub-periods")
 sub_sharpe = [(lbl, md_row(subp, key)[0].split(" / ")[2]) for lbl, key in
               (("2001–2008", "2001-2008"), ("2009–2014", "2009-2014"),
-               ("2015–2020", "2015-2020"), ("2021–2024", "2021-2024.03"))]
+               ("2015–2020", "2015-2020"), ("2021–2024.03", "2021-2024.03"))]
 sens = md_section(snapshot, "7. Integer-contract pass")
 int_sharpe = md_row(sens, "overlay net INTEGER")[2]
 x2_sharpe = md_row(sens, "overlay net 2× costs")[2]
@@ -248,13 +250,9 @@ GROUPS = [
                             ("Turnover", f"~{cost_mean[4]} contracts/yr")]),
 ]
 PNL_COLS = sorted(pnl.items(), key=lambda kv: -kv[1])
-CAPTION = ("Figure 1.", " Backtest summary, 2001–2024, $500K, "
+CAPTION = ("Table 1.", " Backtest summary, 2001–2024, $500K, "
            "net of modeled costs.")
 
-# Arial: metrically a Helvetica clone, and the only one of the two with a
-# real Bold face installed (matplotlib sees just the regular face inside the
-# HelveticaNeue .ttc, so "bold" there silently renders regular).
-FONT = "Arial"
 # layout in inches from the top-left corner; 150 dpi via rcParams
 W, H = 11.0, 4.75
 L, R = 0.55, W - 0.55
@@ -265,7 +263,6 @@ Y = lambda y: 1 - y / H
 
 
 def txt(x, y, s, **kw):
-    kw.setdefault("fontfamily", FONT)
     return fig.text(X(x), Y(y), s, **kw)
 
 
@@ -299,7 +296,7 @@ y_head2 = y_bot + 0.56
 y_rule2 = y_head2 + 0.14
 y_lab2, y_val2 = y_rule2 + 0.30, y_rule2 + 0.62
 y_bot2 = y_val2 + 0.20
-x_split = L + (R - L) * 0.36
+x_split = L + (R - L) * 0.43          # room for the 2021–2024.03 label
 rule(L, y_rule2, R, y_rule2, **HEAVY)
 rule(x_split, y_head2 - 0.22, x_split, y_bot2, **THIN)
 for title, cols, x0, x1 in [

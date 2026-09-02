@@ -253,7 +253,7 @@ series gives beta -0.0209 on Stooq's window vs Stooq's
 | SPY adj. (Stooq) | 2005-02-28 → 2024-03-28 | -0.0207 | 0.0023 | 0.0042 | -0.131 | 1.70% | 4,803 |
 | ES cont. futures (Stooq) | 2001-01-02 → 2024-03-28 | -0.0234 | 0.0022 | 0.0037 | -0.136 | 1.86% | 5,889 |
 
-Beta to the S&P 500 over the full sample is -0.024 (SE
+Beta to the S&P 500 over the full sample is -0.02 (SE
 0.0022; Newey-West SE 0.0039, about
 6 robust SEs below zero), correlation -0.14:
 economically negligible and slightly negative, and the same to three decimals

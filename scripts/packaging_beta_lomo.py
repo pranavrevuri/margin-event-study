@@ -122,7 +122,7 @@ series gives beta {m_spy_y_ov['beta']:+.4f} on Stooq's window vs Stooq's
 | SPY adj. (Stooq) | 2005-02-28 → {w_hi} | {fmt(m_spy_s)} |
 | ES cont. futures (Stooq) | {w_lo} → {w_hi} | {fmt(m_es)} |
 
-Beta to the S&P 500 over the full sample is {m_spy['beta']:+.3f} (SE
+Beta to the S&P 500 over the full sample is {m_spy['beta']:+.2f} (SE
 {m_spy['se']:.4f}; Newey-West SE {m_spy['se_nw']:.4f}, about
 {abs(tstat_nw):.0f} robust SEs below zero), correlation {m_spy['corr']:+.2f}:
 economically negligible and slightly negative, and the same to three decimals
