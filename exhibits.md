@@ -24,10 +24,11 @@ qualifying margin-hike effective dates.
 03-28). Era dependence is visible: the strong years cluster in 2001–2008,
 with thinner returns after.
 
-![Table 1](TABLE1_summary.png)
-**Table 1.** Summary statistics, overlay variant, factsheet format. Sharpe
-shown gross / net / at doubled costs; beta and correlation vs SPY
-(Stooq, 2005-02+).
+![Table 1](FIG_summary_table.png)
+**Table 1.** Backtest summary, overlay variant, factsheet format: performance,
+risk, overlay vs baseline, and costs/robustness, with sub-period net Sharpe
+and per-market net P&L beneath. Beta vs SPY (Yahoo, full sample 2001-01 –
+2024-03).
 
 **Table 2.** Sub-periods, net (ann ret / ann vol / Sharpe / max DD).
 

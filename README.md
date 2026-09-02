@@ -38,7 +38,7 @@ internally and preserves the report sections already appended):
    S&P 500 beta (output committed under `data/prices/`; rerun only to refresh)
 7. `scripts/packaging_beta_lomo.py` — beta/correlation vs the S&P 500 over the
    full sample and the leave-one-market-out table
-8. `scripts/exhibit_restyle.py` — FIG1–FIG4 and TABLE1 PNGs assembled in
+8. `scripts/exhibit_restyle.py` — FIG1–FIG4 and FIG_summary_table PNGs assembled in
    [exhibits.md](exhibits.md)
 
 ## Where the data comes from

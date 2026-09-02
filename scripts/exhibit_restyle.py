@@ -2,11 +2,13 @@
 """
 Presentation only — NO change to strategy logic, parameters, or results.
 Reads: the committed backtest (rerun unchanged via backtest_path2.py, which
-reproduces the committed numbers exactly); episode dates, beta, and factsheet
-values are taken verbatim from the committed strategy_results.md.
+reproduces the committed numbers exactly); drawdown-episode dates are taken
+verbatim from, and every factsheet-table value is parsed out of, the committed
+strategy_results.md.
 Writes: FIG1_equity.png, FIG2_drawdown.png, FIG3_si2011.png, FIG4_annual.png,
-TABLE1_summary.png. strategy_results.md is snapshot/restored, not modified.
+FIG_summary_table.png. strategy_results.md is snapshot/restored, not modified.
 """
+import re
 import runpy
 from pathlib import Path
 
@@ -17,6 +19,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.transforms as mtransforms
+from matplotlib.lines import Line2D
 
 REPO = Path(__file__).resolve().parent.parent
 RESULTS = REPO / "strategy_results.md"
@@ -187,40 +190,142 @@ fig.tight_layout()
 fig.savefig(REPO / "FIG4_annual.png")
 plt.close(fig)
 
-# ------------------------------------------ TABLE1: factsheet summary image
-# values verbatim from the committed strategy_results.md
-LEFT = [("Net return / yr", "2.21%"),
-        ("Volatility (ann.)", "3.32%"),
-        ("Sharpe (gross / net / 2× costs)", "0.73 / 0.67 / 0.60"),
-        ("Max drawdown", "−9.4%"),
-        ("Worst 12 months", "−8.1%")]
-RIGHT = [("Beta to S&P 500 (SE)", "−0.021  (0.002)"),
-         ("Correlation to S&P 500", "−0.13"),
-         ("Avg cost / turnover per yr", "20.8 bps · 58 contracts"),
-         ("Total net P&L", "$261.8K  (52.4% of capital)"),
-         ("Sample", "2001-01 – 2024-03 · 9 mkts")]
-fig = plt.figure(figsize=(8.6, 4.0))
-ax = fig.add_axes([0, 0, 1, 1])
-ax.axis("off")
-fig.text(0.055, 0.895, "Margin-Aware Trend (Path 2) — overlay summary",
-         fontsize=14, fontweight="bold", color=INK)
-fig.text(0.055, 0.825, SUB_FULL, fontsize=9, color=FAINT)
-ax.plot([0.055, 0.945], [0.775, 0.775], color=NAVY, lw=2.2,
-        transform=fig.transFigure, clip_on=False)
-y0, dy = 0.685, 0.112
-for col, x_name, x_val in [(LEFT, 0.055, 0.475), (RIGHT, 0.525, 0.945)]:
-    for i, (name, val) in enumerate(col):
-        y = y0 - i * dy
-        fig.text(x_name, y, name, fontsize=9.5, color=FAINT, va="center")
-        fig.text(x_val, y, val, fontsize=10, color=INK, fontweight="bold",
-                 ha="right", va="center")
-        ax.plot([x_name, x_val], [y - dy * 0.42] * 2, color="#e5e5e5",
-                lw=0.8, transform=fig.transFigure, clip_on=False)
-fig.text(0.055, 0.075, "Overlay variant, fractional contracts, net of costs "
-         "unless noted. Beta vs SPY (Stooq, 2005-02+). "
-         "Values from strategy_results.md.", fontsize=7.8, color=FAINT)
-fig.savefig(REPO / "TABLE1_summary.png")
+# ------------------------------------ FIG_summary_table: factsheet summary
+# Every value is parsed from the committed strategy_results.md (the `snapshot`
+# text) so the table cannot drift from the report; a format change there
+# fails loudly here instead of rendering a stale number.
+def md_section(text, heading):
+    m = re.search(r"^## " + re.escape(heading) + r".*?$(.*?)(?=^## |\Z)",
+                  text, re.M | re.S)
+    assert m, f"section not found: {heading}"
+    return m.group(1)
+
+
+def md_row(section, first_cell):
+    m = re.search(r"^\| " + re.escape(first_cell) + r" \|(.*)$", section, re.M)
+    assert m, f"row not found: {first_cell}"
+    return [c.strip() for c in m.group(1).strip().strip("|").split("|")]
+
+
+def neg(s):                       # typographic minus for display
+    return s.replace("-", "−")
+
+
+head = md_section(snapshot, "1–2. Headline table")
+ov_net, ov_gross, bl_net = (md_row(head, k) for k in
+                            ("overlay net", "overlay gross", "baseline net"))
+cost_mean = md_row(md_section(snapshot, "3. Cost decomposition"), "**mean/yr**")
+mkts = md_section(snapshot, "4. Per-market contribution")
+pnl = {p: float(md_row(mkts, p)[0])
+       for p in ("ZN", "6E", "6J", "GC", "SI", "HG", "CL", "ZC", "ZS")}
+subp = md_section(snapshot, "5. Sub-periods")
+sub_sharpe = [(lbl, md_row(subp, key)[0].split(" / ")[2]) for lbl, key in
+              (("2001–2008", "2001-2008"), ("2009–2014", "2009-2014"),
+               ("2015–2020", "2015-2020"), ("2021–2024", "2021-2024.03"))]
+sens = md_section(snapshot, "7. Integer-contract pass")
+int_sharpe = md_row(sens, "overlay net INTEGER")[2]
+x2_sharpe = md_row(sens, "overlay net 2× costs")[2]
+beta_spy = float(md_row(md_section(snapshot, "Beta and correlation"),
+                        "SPY adj. (Yahoo)")[1])       # full-sample Yahoo SPY
+
+GROUPS = [
+    ("Performance", [("Net Return (ann.)", ov_net[0]),
+                     ("Net Sharpe", ov_net[2]),
+                     ("Gross Sharpe", ov_gross[2]),
+                     ("Markets Profitable",
+                      f"{sum(v > 0 for v in pnl.values())} of {len(pnl)}")]),
+    ("Risk", [("Volatility (ann.)", ov_net[1]),
+              ("Maximum Drawdown", neg(ov_net[3])),
+              ("Worst 12 Months", neg(ov_net[4])),
+              ("Beta to S&P 500", neg(f"{beta_spy:.2f}"))]),
+    ("Overlay vs Baseline", [("Overlay Vol", ov_net[1]),
+                             ("Baseline Vol", bl_net[1]),
+                             ("Overlay Max DD", neg(ov_net[3])),
+                             ("Baseline Max DD", neg(bl_net[3]))]),
+    ("Costs & Robustness", [("Cost Drag", f"{cost_mean[3]} bps/yr"),
+                            ("Sharpe at 2× Costs", x2_sharpe),
+                            ("Integer-Contract Sharpe", int_sharpe),
+                            ("Turnover", f"~{cost_mean[4]} contracts/yr")]),
+]
+PNL_COLS = sorted(pnl.items(), key=lambda kv: -kv[1])
+CAPTION = ("Figure 1.", " Backtest summary, 2001–2024, $500K, "
+           "net of modeled costs.")
+
+# Arial: metrically a Helvetica clone, and the only one of the two with a
+# real Bold face installed (matplotlib sees just the regular face inside the
+# HelveticaNeue .ttc, so "bold" there silently renders regular).
+FONT = "Arial"
+# layout in inches from the top-left corner; 150 dpi via rcParams
+W, H = 11.0, 4.75
+L, R = 0.55, W - 0.55
+PAD = 0.22
+fig = plt.figure(figsize=(W, H))
+X = lambda x: x / W
+Y = lambda y: 1 - y / H
+
+
+def txt(x, y, s, **kw):
+    kw.setdefault("fontfamily", FONT)
+    return fig.text(X(x), Y(y), s, **kw)
+
+
+def rule(x0, y0, x1, y1, **kw):
+    fig.add_artist(Line2D([X(x0), X(x1)], [Y(y0), Y(y1)],
+                          transform=fig.transFigure, **kw))
+
+
+HEAVY = dict(color=NAVY, lw=1.8, solid_capstyle="butt")
+THIN = dict(color="#cccccc", lw=0.8)
+
+# main table: four groups side by side
+gw = (R - L) / len(GROUPS)
+y_head, y_rule, y_row0, dy = 0.66, 0.80, 1.14, 0.345
+y_bot = y_row0 + (len(GROUPS[0][1]) - 1) * dy + 0.20
+rule(L, y_rule, R, y_rule, **HEAVY)
+for g, (title, rows) in enumerate(GROUPS):
+    x0, x1 = L + g * gw, L + (g + 1) * gw
+    if g:
+        rule(x0, y_head - 0.22, x0, y_bot, **THIN)
+    txt(x0 + PAD, y_head, title, fontsize=10.5, fontweight="bold", color=INK,
+        va="baseline")
+    for i, (name, val) in enumerate(rows):
+        y = y_row0 + i * dy
+        txt(x0 + PAD, y, name, fontsize=9.5, color=FAINT, va="center")
+        txt(x1 - PAD, y, val, fontsize=10, color=INK, fontweight="bold",
+            ha="right", va="center")
+
+# two compact sub-tables side by side, same style
+y_head2 = y_bot + 0.56
+y_rule2 = y_head2 + 0.14
+y_lab2, y_val2 = y_rule2 + 0.30, y_rule2 + 0.62
+y_bot2 = y_val2 + 0.20
+x_split = L + (R - L) * 0.36
+rule(L, y_rule2, R, y_rule2, **HEAVY)
+rule(x_split, y_head2 - 0.22, x_split, y_bot2, **THIN)
+for title, cols, x0, x1 in [
+        ("Sub-period net Sharpe", sub_sharpe, L, x_split),
+        ("Per-market net P&L ($K)", [(p, f"{v:.1f}") for p, v in PNL_COLS],
+         x_split, R)]:
+    txt(x0 + PAD, y_head2, title, fontsize=10.5, fontweight="bold", color=INK,
+        va="baseline")
+    cw = (x1 - x0 - 2 * PAD) / len(cols)
+    for j, (lab, val) in enumerate(cols):
+        xr = x0 + PAD + (j + 1) * cw
+        txt(xr, y_lab2, lab, fontsize=9, color=FAINT, ha="right", va="center")
+        txt(xr, y_val2, val, fontsize=10, color=INK, fontweight="bold",
+            ha="right", va="center")
+
+# caption: bold figure number, regular text placed flush after it
+y_cap = y_bot2 + 0.46
+lead = txt(L, y_cap, CAPTION[0], fontsize=9, fontweight="bold", color=INK,
+           va="baseline")
+fig.canvas.draw()
+bb = lead.get_window_extent(fig.canvas.get_renderer())
+x_after = fig.transFigure.inverted().transform((bb.x1, 0))[0]
+txt(x_after * W, y_cap, CAPTION[1], fontsize=9, color=INK, va="baseline")
+
+fig.savefig(REPO / "FIG_summary_table.png")
 plt.close(fig)
 
 print("wrote FIG1_equity, FIG2_drawdown, FIG3_si2011, FIG4_annual, "
-      "TABLE1_summary (.png)")
+      "FIG_summary_table (.png)")
