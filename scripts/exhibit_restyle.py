@@ -250,7 +250,7 @@ GROUPS = [
                             ("Turnover", f"~{cost_mean[4]} contracts/yr")]),
 ]
 PNL_COLS = sorted(pnl.items(), key=lambda kv: -kv[1])
-CAPTION = ("Table 1.", " Backtest summary, 2001–2024, $500K, "
+CAPTION = ("Figure 1.", " Backtest summary, 2001–2024, $500K, "
            "net of modeled costs.")
 
 # Printed-table styling: serif (the report body face), black on white only,
