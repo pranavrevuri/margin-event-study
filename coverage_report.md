@@ -177,6 +177,8 @@ Raw source caches (in repo, not committed; ~350 MB total — consider .gitignore
 - `data/raw_advisories/stubs/` — 1,918 clearing-notice stub JSONs.
 - `data/raw_advisories/attachments/` — 827 PB advisory attachments (.pdf/.xlsx).
 
+Note added 2026-09-03: the three directories above are listed in `.gitignore` and are not in the public repository. They total about 381 MB and are available on request. Every parsed output they feed is committed in `data/`, so the studies and the backtest reproduce without them. `scripts/parse_wayback_margins.py` and `scripts/parse_advisories.py` read their inputs through a path constant named `SP` near the top of each script, which must be pointed at the directory holding the caches before either is rerun.
+
 ## 10. What remains open (for a future session, before any analysis)
 
 1. 2008–2015 advisory stubs (indexed, inline-format, ~4,025 pages) → notice dates 2008–2015 + ES 2008–2015.

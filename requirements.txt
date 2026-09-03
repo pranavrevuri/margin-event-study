@@ -1,0 +1,23 @@
+# Python 3.12. These are the exact versions the committed results were
+# reproduced with on 2026-09-03.
+
+# backtest and exhibits (scripts/backtest_path2.py, monte_carlo_exhibit.py,
+# exposure_beta_exhibit.py, packaging_beta_lomo.py, annual_returns_exhibit.py,
+# verify_data.py, stage1_*.py, stage2_v3.py, h2_oneshot.py, stitch_coverage.py)
+pandas==3.0.2
+numpy==2.4.3
+matplotlib==3.10.8
+
+# code excerpts in the exhibit figures (scripts/exhibit_restyle.py)
+pygments==2.19.2
+
+# PDF parsing of CME margin files (scripts/parse_margins.py,
+# parse_wayback_margins.py, parse_advisories.py)
+pymupdf==1.28.2
+
+# CME clearing advisory fetch and .xlsx attachments (scripts/parse_advisories.py)
+curl_cffi==0.15.0
+openpyxl==3.1.5
+
+# Yahoo Finance download for the beta exhibit (scripts/fetch_yahoo_sp500.py)
+yfinance==1.5.2
