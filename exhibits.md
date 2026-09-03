@@ -33,12 +33,12 @@ with thinner returns after.
 
 ![Figure 6](FIG6_sizing_code.png)
 **Figure 6.** Position sizing implementation. scripts/backtest_path2.py lines
-253–266, verbatim: sigma = max(realized, margin-implied) and the contract
+258–276, verbatim: sigma = max(realized, margin-implied) and the contract
 target, with the de-risk halving and integer rounding.
 
 ![Figure 7](FIG7_event_code.png)
 **Figure 7.** Margin event detection. scripts/backtest_path2.py lines
-151–168, verbatim: maintenance level on a business-day grid, the ≥5% five-day
+151–173, verbatim: maintenance level on a business-day grid, the ≥5% five-day
 cumulative increase test, and the 10-trading-day anchor clustering.
 
 **Table 1.** Sub-periods, net (ann ret / ann vol / Sharpe / max DD).

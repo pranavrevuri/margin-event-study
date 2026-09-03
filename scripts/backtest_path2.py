@@ -148,15 +148,20 @@ def ev_td_shift(prod, d, k):
 
 def qualifying_events(prod, start=None):
     g = margin[margin["product"] == prod].drop_duplicates("effective_date", keep="last")
+    # maintenance margin level by effective date
     lv = g.set_index("effective_date").maintenance.astype(float)
     pct = lv.pct_change()
+    # business-day grid, carried forward
     grid = pd.bdate_range(lv.index.min(), SPAN_END)
     level = lv.reindex(grid.strftime("%Y-%m-%d")).ffill()
+    # cumulative change over five business days
     cum5 = level / level.shift(5) - 1.0
+    # qualifying days: increases with cum5 >= 5%
     inc = set(d for d, v in pct.items() if v == v and v > 0)
     qd = sorted((d, float(cum5.loc[d])) for d in level.index
                 if d in inc and cum5.loc[d] == cum5.loc[d] and cum5.loc[d] >= 0.05
                 and (start is None or d >= start))
+    # anchor clustering: one event per 10 trading days
     ev, i = [], 0
     while i < len(qd):
         d0 = qd[i][0]
@@ -250,18 +255,23 @@ def run_market(p, variant, integer=False):
         if i >= SIG_LOOKBACK:
             chg = fr.A.iloc[i] - fr.A.iloc[i - SIG_LOOKBACK]
             sig = float(np.sign(chg))
+        # realized vol and margin-implied vol
         sigma_r = fr.ewma.iloc[i]
         ml = fr.mlevel.iloc[i]
         sigma_m = ml / Z_MARGIN if ml == ml else np.nan
+        # overlay uses the larger of the two
         if variant == "overlay":
             sigma = np.nanmax([sigma_r, sigma_m])
         else:
             sigma = sigma_r
+        # signed contracts for the vol budget
         target = 0.0
         if sig != 0.0 and sigma == sigma and sigma > 0:
             target = sig * BUDGET / sigma
+            # halve inside a post-hike de-risk window
             if variant == "overlay" and f in derisk_days[p]:
                 target *= 0.5
+        # integer pass: whole contracts
         if integer:
             target = float(np.rint(target))
         diag.append((f, sigma_r, sigma_m, target))

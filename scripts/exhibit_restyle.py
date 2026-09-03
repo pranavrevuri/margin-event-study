@@ -6,9 +6,10 @@ reproduces the committed numbers exactly); drawdown-episode dates are taken
 verbatim from, and every summary-table value is parsed out of, the committed
 strategy_results.md; the two code exhibits are excerpts of backtest_path2.py
 itself, read from disk at render time (never retyped).
-Writes seven exhibit PNGs at 150 dpi — white background, grayscale only
-(near-black overlay, medium-gray baseline, light-gray shading), serif type,
-each with its caption rendered beneath in italic:
+Writes seven exhibit PNGs at 150 dpi — white background, a restrained palette
+(navy overlay, gray baseline, muted red for losing years, muted syntax colors
+in the code exhibits), serif type, each with its caption rendered beneath in
+italic:
   FIG1_summary.png, FIG2_equity.png, FIG3_drawdown.png, FIG4_si2011.png,
   FIG5_annual.png, FIG6_sizing_code.png, FIG7_event_code.png
 strategy_results.md is snapshot/restored, not modified. Needs pygments for the
@@ -46,11 +47,12 @@ events = bt["events"]
 td_shift = bt["td_shift"]
 
 # ------------------------------------------------------------- shared style
-# grayscale only: near-black overlay, medium-gray baseline, light-gray bands
-OVERLAY = "#1a1a1a"       # overlay series, positive bars
-BASELINE = "#8c8c8c"      # baseline series, negative bars
-MARK = "#555555"          # event markers and their labels
-SHADE = dict(color="#000000", alpha=0.08, lw=0)   # light gray shaded bands
+# restrained palette: navy overlay, gray baseline, muted red for losing years
+NAVY = "#1b3a6b"          # overlay series, positive bars, event markers, headers
+GRAY = "#8c8c8c"          # baseline series
+RED = "#a94442"           # negative bars
+LABEL = "#555555"         # drawdown episode labels
+SHADE = dict(color=NAVY, alpha=0.08, lw=0)   # light navy-tinted bands
 BLACK = "#000000"
 INK = "#333333"
 FAINT = "#777777"
@@ -125,14 +127,14 @@ DT = pd.to_datetime(all_days)
 # ---------------------------------------------------- FIG2: cumulative net P&L
 def fig_equity():
     fig, ax = chart(10, 5.2)
-    for key, c, lw, lbl in [("overlay", OVERLAY, 2.0, "Overlay"),
-                            ("baseline", BASELINE, 1.6, "Baseline")]:
+    for key, c, lw, lbl in [("overlay", NAVY, 2.0, "Overlay"),
+                            ("baseline", GRAY, 1.6, "Baseline")]:
         y = PORT[key].net.cumsum() / CAPITAL * 100
         ax.plot(DT, y, color=c, lw=lw, label=lbl)
         ax.annotate(lbl, (DT[-1], y.iloc[-1]), xytext=(6, 0),
                     textcoords="offset points", color=c, fontsize=9.5,
                     fontweight="bold", va="center")
-    headed(ax, "Cumulative net P&L — overlay vs baseline", SUB_FULL)
+    headed(ax, "Cumulative net P&L, overlay vs baseline", SUB_FULL)
     ax.set_ylabel("% of capital")
     date_axis(ax)
     ax.margins(x=0.06)
@@ -150,8 +152,8 @@ EPISODES = [("1st worst −9.4%", "Jul 2008–Feb 2010", "2008-07-02", "2010-02-
 
 def fig_drawdown():
     fig, ax = chart(10, 4.6)
-    for key, c, lw, lbl in [("baseline", BASELINE, 1.3, "Baseline"),
-                            ("overlay", OVERLAY, 1.8, "Overlay")]:
+    for key, c, lw, lbl in [("baseline", GRAY, 1.3, "Baseline"),
+                            ("overlay", NAVY, 1.8, "Overlay")]:
         r = PORT[key].net.cumsum() / CAPITAL
         dd = ((r - r.cummax()) * 100).to_numpy(dtype=float)
         ax.plot(DT, dd, color=c, lw=lw, label=lbl)
@@ -160,9 +162,9 @@ def fig_drawdown():
         ax.axvspan(t0, t1, **SHADE)
         # labels at the episode midpoint, in the band below the deepest drawdown
         ax.text(t0 + (t1 - t0) / 2, -12.3, f"{line1}\n{line2}",
-                ha="center", va="top", fontsize=7.4, color=MARK)
+                ha="center", va="top", fontsize=7.4, color=LABEL)
     ax.set_ylim(-14.4, 0.6)
-    headed(ax, "Drawdown from high-water mark — five worst overlay episodes shaded",
+    headed(ax, "Drawdown from high-water mark, five worst overlay episodes shaded",
            SUB_FULL)
     ax.set_ylabel("% of capital")
     # legend in the header band, clear of the episode labels along the bottom
@@ -188,13 +190,13 @@ def fig_si2011():
             continue
         ax.axvspan(pd.to_datetime(t_e), pd.to_datetime(t_end), **SHADE,
                    label="de-risk window [t0, t0+10]" if first else None)
-        ax.axvline(pd.to_datetime(t_e), color=MARK, lw=0.8, ls=":", alpha=0.65)
+        ax.axvline(pd.to_datetime(t_e), color=NAVY, lw=0.8, ls=":", alpha=0.65)
         tr = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
         ax.text(pd.to_datetime(t_e), 0.99, f" hike eff. {d_e}", transform=tr,
-                rotation=90, va="top", ha="right", fontsize=7.2, color=MARK)
+                rotation=90, va="top", ha="right", fontsize=7.2, color=NAVY)
         first = False
-    for key, c, lw, lbl in [("baseline", BASELINE, 1.5, "Baseline"),
-                            ("overlay", OVERLAY, 1.9, "Overlay")]:
+    for key, c, lw, lbl in [("baseline", GRAY, 1.5, "Baseline"),
+                            ("overlay", NAVY, 1.9, "Overlay")]:
         ax.step(wdt, VARIANTS[key][P].pos_after[win], where="post",
                 color=c, lw=lw, label=lbl)
     ax.axhline(0, color="#bbbbbb", lw=0.8)
@@ -217,10 +219,10 @@ def fig_annual():
            for y in years]
     labels = [y if y != "2024" else "2024*" for y in years]
     fig, ax = chart(10, 4.4)
-    ax.bar(labels, ann, color=[OVERLAY if v >= 0 else BASELINE for v in ann],
+    ax.bar(labels, ann, color=[NAVY if v >= 0 else RED for v in ann],
            width=0.72, zorder=3)
     ax.axhline(0, color=INK, lw=1.3, zorder=4)
-    headed(ax, "Annual net returns — overlay variant",
+    headed(ax, "Annual net returns, overlay variant",
            "2001–2024 (*2024 through 03-28) · % of $500K capital · net of costs")
     ax.set_ylabel("% of capital")
     ax.tick_params(axis="x", rotation=60)
@@ -335,7 +337,8 @@ def fig_summary_table():
         x0, x1 = L + g * gw, L + (g + 1) * gw
         if g:
             rule(x0, y_top, x0, y_bot, INNER)
-        txt(x0 + PAD, y_head, title, fontsize=FS_H, fontweight="bold", va="center")
+        txt(x0 + PAD, y_head, title, fontsize=FS_H, fontweight="bold", color=NAVY,
+            va="center")
         for i, (name, val) in enumerate(rows):
             y = y_row0 + i * ROW
             txt(x0 + PAD, y, name, fontsize=FS_B, va="center")
@@ -348,7 +351,8 @@ def fig_summary_table():
         rule(x0, y_top2, x1, y_top2, OUTER)
         rule(x0, y_mid2, x1, y_mid2, INNER)
         rule(x0, y_bot2, x1, y_bot2, OUTER)
-        txt(x0 + PAD, y_head2, title, fontsize=FS_H, fontweight="bold", va="center")
+        txt(x0 + PAD, y_head2, title, fontsize=FS_H, fontweight="bold", color=NAVY,
+            va="center")
         cw = (x1 - x0 - 2 * PAD) / len(cols)
         for j, (lab, val) in enumerate(cols):
             xr = x0 + PAD + (j + 1) * cw
@@ -361,13 +365,14 @@ def fig_summary_table():
 
 # ------------------------------------------------ FIG6 / FIG7: code excerpts
 # Verbatim lines of the committed script, dedented for display and tokenized
-# with pygments; "highlighting" is grayscale — weight and shade instead of hue.
+# with pygments; muted syntax colors.
 CODE_FS = 9
 CODE_STYLE = [
-    (Token.Keyword, dict(fontweight="bold", color=BLACK)),
-    (Token.Operator.Word, dict(fontweight="bold", color=BLACK)),   # and, or, not, in, is
+    (Token.Keyword, dict(fontweight="bold", color=NAVY)),
+    (Token.Operator.Word, dict(fontweight="bold", color=NAVY)),   # and, or, not, in, is
     (Token.Comment, dict(fontstyle="italic", color=FAINT)),
-    (Token.Literal.String, dict(color=MARK)),
+    (Token.Literal.String, dict(color="#2e6b3f")),
+    (Token.Literal.Number, dict(color=RED)),
 ]
 
 
@@ -375,7 +380,16 @@ def token_style(ttype):
     for t, st in CODE_STYLE:
         if ttype in t:
             return st
-    return dict(color=OVERLAY)
+    return dict(color="#1a1a1a")
+
+
+def find_block(rel_path, first_marker, last_marker):
+    """Line range of the excerpt: from the line containing first_marker to the
+    next line whose stripped text equals last_marker."""
+    lines = (REPO / rel_path).read_text().splitlines()
+    first = next(i for i, l in enumerate(lines, 1) if first_marker in l)
+    last = next(i for i, l in enumerate(lines, 1) if i >= first and l.strip() == last_marker)
+    return rel_path, first, last
 
 
 def fig_code(n, rel_path, first, last):
@@ -414,10 +428,13 @@ def fig_code(n, rel_path, first, last):
 
 # sigma = max(realized, margin-implied) -> contract target, de-risk halving,
 # integer rounding (inside run_market's weekly loop)
-FIG6_SRC = ("scripts/backtest_path2.py", 253, 266)
+FIG6_SRC = find_block("scripts/backtest_path2.py",
+                      "# realized vol and margin-implied vol",
+                      "target = float(np.rint(target))")
 # maintenance level on a business-day grid, the >=5% five-day cumulative
 # increase test, and the 10-trading-day anchor clustering (qualifying_events)
-FIG7_SRC = ("scripts/backtest_path2.py", 151, 168)
+FIG7_SRC = find_block("scripts/backtest_path2.py",
+                      "# maintenance margin level by effective date", "i = j")
 
 if __name__ == "__main__":
     for make, name in ((fig_summary_table, "FIG1_summary.png"),
@@ -432,3 +449,5 @@ if __name__ == "__main__":
         plt.close(fig)
     print("wrote FIG1_summary, FIG2_equity, FIG3_drawdown, FIG4_si2011, "
           "FIG5_annual, FIG6_sizing_code, FIG7_event_code (.png)")
+    print(f"FIG6 excerpt: {FIG6_SRC[0]} lines {FIG6_SRC[1]}-{FIG6_SRC[2]} | "
+          f"FIG7 excerpt: {FIG7_SRC[0]} lines {FIG7_SRC[1]}-{FIG7_SRC[2]}")
