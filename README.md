@@ -38,12 +38,8 @@ internally and preserves the report sections already appended):
    S&P 500 beta (output committed under `data/prices/`; rerun only to refresh)
 7. `scripts/packaging_beta_lomo.py` — beta/correlation vs the S&P 500 over the
    full sample and the leave-one-market-out table
-8. `scripts/exhibit_restyle.py` — FIG1–FIG4 and FIG_summary_table PNGs assembled in
-   [exhibits.md](exhibits.md)
-9. `scripts/exhibits_page.py` — all five exhibits re-rendered at page width and
-   native aspect ratio, stacked on a US Letter-width page that runs as tall as
-   needed (EXHIBITS_PAGE.png; `--pages auto` for Letter pagination), with a
-   legibility audit
+8. `scripts/exhibit_restyle.py` — the seven exhibit PNGs (FIG1–FIG7, captions
+   rendered in the image) assembled in [exhibits.md](exhibits.md)
 
 ## Where the data comes from
 

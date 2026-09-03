@@ -3,20 +3,20 @@
 Presentation only — NO change to strategy logic, parameters, or results.
 Reads: the committed backtest (rerun unchanged via backtest_path2.py, which
 reproduces the committed numbers exactly); drawdown-episode dates are taken
-verbatim from, and every factsheet-table value is parsed out of, the committed
-strategy_results.md.
-Writes (when run as a script): FIG1_equity.png, FIG2_drawdown.png,
-FIG3_si2011.png, FIG4_annual.png, FIG_summary_table.png at their standard
-sizes. strategy_results.md is snapshot/restored, not modified.
-
-Each exhibit is a function returning a matplotlib Figure so that
-scripts/exhibits_page.py can re-render it at a page-slot size instead of
-downscaling the PNG. Every parameter defaults to the standard exhibit; the only
-extras are fitting hooks (legend placement, tick spacing, header size, label
-de-collision) that change nothing at the defaults.
+verbatim from, and every summary-table value is parsed out of, the committed
+strategy_results.md; the two code exhibits are excerpts of backtest_path2.py
+itself, read from disk at render time (never retyped).
+Writes seven exhibit PNGs at 150 dpi — white background, grayscale only
+(near-black overlay, medium-gray baseline, light-gray shading), serif type,
+each with its caption rendered beneath in italic:
+  FIG1_summary.png, FIG2_equity.png, FIG3_drawdown.png, FIG4_si2011.png,
+  FIG5_annual.png, FIG6_sizing_code.png, FIG7_event_code.png
+strategy_results.md is snapshot/restored, not modified. Needs pygments for the
+code exhibits' tokenization.
 """
 import re
 import runpy
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +27,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.transforms as mtransforms
 from matplotlib.lines import Line2D
+from pygments import lex
+from pygments.lexers import PythonLexer
+from pygments.token import Token
 
 REPO = Path(__file__).resolve().parent.parent
 RESULTS = REPO / "strategy_results.md"
@@ -48,11 +51,14 @@ OVERLAY = "#1a1a1a"       # overlay series, positive bars
 BASELINE = "#8c8c8c"      # baseline series, negative bars
 MARK = "#555555"          # event markers and their labels
 SHADE = dict(color="#000000", alpha=0.08, lw=0)   # light gray shaded bands
+BLACK = "#000000"
 INK = "#333333"
 FAINT = "#777777"
+SERIF = ["Times New Roman", "Times", "DejaVu Serif"]   # Regular/Bold/Italic installed
+MONO = "Courier New"                                    # Regular/Bold/Italic installed
 plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Arial", "Helvetica Neue", "Helvetica", "DejaVu Sans"],
+    "font.family": "serif",
+    "font.serif": SERIF,
     "font.size": 10,
     "axes.edgecolor": "#cccccc",
     "axes.labelcolor": INK,
@@ -70,16 +76,27 @@ plt.rcParams.update({
     "axes.facecolor": "white",
     "savefig.dpi": 150,
 })
-# Arial: metrically a Helvetica clone with a real Bold face installed —
-# matplotlib sees only the regular face inside the HelveticaNeue .ttc, so bold
-# titles/values there rendered regular. Date ranges use an en dash, not U+2192.
 SUB_FULL = ("2001-01-02 – 2024-03-28 · 9 CME futures markets · $500K capital · "
             "net of costs, no compounding")
 
+# captions, rendered beneath every exhibit in italic serif
+CAPTIONS = {
+    1: "Figure 1. Backtest summary.",
+    2: "Figure 2. Cumulative net P&L, overlay vs baseline.",
+    3: "Figure 3. Drawdown from high-water mark.",
+    4: "Figure 4. Margin-based sizing, 2011 silver episode.",
+    5: "Figure 5. Net return by calendar year.",
+    6: "Figure 6. Position sizing implementation.",
+    7: "Figure 7. Margin event detection.",
+}
+CAP_FS = 9.5
+CAP_STRIP = 0.42      # inches reserved beneath a chart for its caption
+CAP_BASE = 0.16       # caption baseline above the figure's bottom edge, inches
 
-def headed(ax, title, sub, title_fs=12.5, pad=24):
-    ax.set_title(title, loc="left", fontweight="bold", fontsize=title_fs, pad=pad)
-    return ax.text(0.0, 1.035, sub, transform=ax.transAxes, fontsize=8.5, color=FAINT)
+
+def headed(ax, title, sub):
+    ax.set_title(title, loc="left", fontweight="bold", fontsize=12.5, pad=24)
+    ax.text(0.0, 1.035, sub, transform=ax.transAxes, fontsize=8.5, color=FAINT)
 
 
 def date_axis(ax, years=2):
@@ -87,12 +104,27 @@ def date_axis(ax, years=2):
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
 
+def chart(w, h):
+    """A chart figure at its native size plus the caption strip."""
+    return plt.subplots(figsize=(w, h + CAP_STRIP))
+
+
+def finish(fig, ax, n):
+    """tight_layout above the caption strip, then the caption aligned with the
+    axes' left edge (as on the summary table)."""
+    H = fig.get_figheight()
+    fig.tight_layout(rect=(0, CAP_STRIP / H, 1, 1))
+    fig.text(ax.get_position().x0, CAP_BASE / H, CAPTIONS[n], fontsize=CAP_FS,
+             fontstyle="italic", color=BLACK, va="baseline")
+    return fig
+
+
 DT = pd.to_datetime(all_days)
 
 
-# ---------------------------------------------------- FIG1: cumulative net P&L
-def fig_equity(figsize=(10, 5.2)):
-    fig, ax = plt.subplots(figsize=figsize)
+# ---------------------------------------------------- FIG2: cumulative net P&L
+def fig_equity():
+    fig, ax = chart(10, 5.2)
     for key, c, lw, lbl in [("overlay", OVERLAY, 2.0, "Overlay"),
                             ("baseline", BASELINE, 1.6, "Baseline")]:
         y = PORT[key].net.cumsum() / CAPITAL * 100
@@ -100,16 +132,14 @@ def fig_equity(figsize=(10, 5.2)):
         ax.annotate(lbl, (DT[-1], y.iloc[-1]), xytext=(6, 0),
                     textcoords="offset points", color=c, fontsize=9.5,
                     fontweight="bold", va="center")
-    # Sharpe and max drawdown per variant are stated in the caption (exhibits.md)
     headed(ax, "Cumulative net P&L — overlay vs baseline", SUB_FULL)
     ax.set_ylabel("% of capital")
     date_axis(ax)
     ax.margins(x=0.06)
-    fig.tight_layout()
-    return fig
+    return finish(fig, ax, 2)
 
 
-# --------------------------------------------------------- FIG2: drawdown
+# --------------------------------------------------------- FIG3: drawdown
 # five worst overlay episodes, verbatim from strategy_results.md §8
 EPISODES = [("1st worst −9.4%", "Jul 2008–Feb 2010", "2008-07-02", "2010-02-05"),
             ("2nd worst −6.8%", "Aug 2011–Jan 2013", "2011-08-31", "2013-01-04"),
@@ -118,75 +148,37 @@ EPISODES = [("1st worst −9.4%", "Jul 2008–Feb 2010", "2008-07-02", "2010-02-
             ("5th worst −4.6%", "Oct 2022–Dec 2023", "2022-10-19", "2023-12-14")]
 
 
-def decollide(fig, ax, labels, gap_px=4):
-    """Sweep the episode labels left to right, starting at the axes' left
-    edge, and push any label that runs into the previous box (or past the
-    y-axis) to the right. A no-op at the standard size, where the labels
-    already clear each other and stay inside the axes; only narrow renders move."""
-    fig.canvas.draw()
-    r = fig.canvas.get_renderer()
-    prev_x1 = ax.bbox.x0
-    for t in sorted(labels, key=lambda t: t.get_position()[0]):
-        bb = t.get_window_extent(r)
-        if bb.x0 < prev_x1 + gap_px:
-            x_px = (bb.x0 + bb.x1) / 2 + (prev_x1 + gap_px - bb.x0)
-            t.set_x(ax.transData.inverted().transform((x_px, bb.y0))[0])
-            bb = t.get_window_extent(r)
-        prev_x1 = bb.x1
-
-
-def fig_drawdown(figsize=(10, 4.6), legend="header", title_fs=12.5):
-    fig, ax = plt.subplots(figsize=figsize)
+def fig_drawdown():
+    fig, ax = chart(10, 4.6)
     for key, c, lw, lbl in [("baseline", BASELINE, 1.3, "Baseline"),
                             ("overlay", OVERLAY, 1.8, "Overlay")]:
         r = PORT[key].net.cumsum() / CAPITAL
         dd = ((r - r.cummax()) * 100).to_numpy(dtype=float)
         ax.plot(DT, dd, color=c, lw=lw, label=lbl)
-    labels = []
     for line1, line2, peak, trough in EPISODES:
         t0, t1 = pd.to_datetime(peak), pd.to_datetime(trough)
         ax.axvspan(t0, t1, **SHADE)
-        # anchor labels at the episode midpoint so adjacent episodes don't collide
-        labels.append(ax.text(t0 + (t1 - t0) / 2, -12.3, f"{line1}\n{line2}",
-                              ha="center", va="top", fontsize=7.4, color="#555555",
-                              bbox=dict(fc="white", ec="none", alpha=0.8, pad=1)))
+        # labels at the episode midpoint, in the band below the deepest drawdown
+        ax.text(t0 + (t1 - t0) / 2, -12.3, f"{line1}\n{line2}",
+                ha="center", va="top", fontsize=7.4, color=MARK)
     ax.set_ylim(-14.4, 0.6)
     headed(ax, "Drawdown from high-water mark — five worst overlay episodes shaded",
-           SUB_FULL, title_fs=title_fs, pad=24 if legend == "header" else 28)
+           SUB_FULL)
     ax.set_ylabel("% of capital")
-    if legend == "header":
-        # legend in the header band, clear of the episode labels along the bottom
-        fig.legend(loc="upper right", bbox_to_anchor=(0.97, 0.965), ncol=2,
-                   frameon=False, fontsize=9)
-    else:
-        # narrow renders: no room beside the title, so stack the legend on the
-        # subtitle line, flush right above the axes
-        ax.legend(loc="lower right", bbox_to_anchor=(1.0, 1.0), ncol=1,
-                  frameon=False, fontsize=9, borderaxespad=0, labelspacing=0.15,
-                  handlelength=1.2, handletextpad=0.5)   # clear of the subtitle
+    # legend in the header band, clear of the episode labels along the bottom
+    fig.legend(loc="upper right", bbox_to_anchor=(0.97, 0.965), ncol=2,
+               frameon=False, fontsize=9)
     date_axis(ax)
     ax.margins(x=0.02)
-    fig.tight_layout()
-    decollide(fig, ax, labels)
-    # keep the label band inside the axes at any height: if the two-line
-    # labels would run past the axes bottom, extend the y-range downward
-    # (never above the standard -14.4, so the standard figure is unchanged)
-    r = fig.canvas.get_renderer()
-    need_px = max(t.get_window_extent(r).height for t in labels) + 6
-    ymin = -14.4
-    for _ in range(3):
-        px_per_unit = ax.bbox.height / (0.6 - ymin)
-        ymin = min(-14.4, -12.3 - need_px / px_per_unit)
-    ax.set_ylim(ymin, 0.6)
-    return fig
+    return finish(fig, ax, 3)
 
 
-# ------------------------------------------- FIG3: SI 2011 sizing diagnostic
-def fig_si2011(figsize=(10, 4.6), month_step=3, title_fs=12.5):
+# ------------------------------------------- FIG4: SI 2011 sizing diagnostic
+def fig_si2011():
     P, W0, W1 = "SI", "2010-09-01", "2012-03-31"
     win = [d for d in all_days if W0 <= d <= W1 and d in VARIANTS["overlay"][P].index]
     wdt = pd.to_datetime(win)
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = chart(10, 4.6)
     # 10-trading-day de-risk windows and their margin-hike effective dates
     first = True
     for d_e in events[P]:
@@ -206,36 +198,25 @@ def fig_si2011(figsize=(10, 4.6), month_step=3, title_fs=12.5):
         ax.step(wdt, VARIANTS[key][P].pos_after[win], where="post",
                 color=c, lw=lw, label=lbl)
     ax.axhline(0, color="#bbbbbb", lw=0.8)
-    title = "Margin-based sizing around the 2011 silver margin episode"
-    sub = ("SI position, contracts (fractional) · Sep 2010 – Mar 2012 · shaded: "
+    headed(ax, "Margin-based sizing around the 2011 silver margin episode",
+           "SI position, contracts (fractional) · Sep 2010 – Mar 2012 · shaded: "
            "10-day de-risk window after each qualifying margin hike")
-    sub_text = headed(ax, title, sub, title_fs=title_fs)
     ax.set_ylabel("contracts")
     ax.legend(loc="lower left", frameon=False, fontsize=9)
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=month_step))
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
     ax.margins(x=0.02)
-    fig.tight_layout()
-    # fitting hook: if the one-line subtitle runs past the figure's right edge
-    # (it does below ~7.5 in), break it at the " · shaded:" separator and lift
-    # the title to make room. A no-op at the standard size.
-    fig.canvas.draw()
-    if sub_text.get_window_extent(fig.canvas.get_renderer()).x1 > fig.bbox.x1:
-        sub_text.set_text(sub.replace(" · shaded: ", "\nshaded: "))
-        sub_text.set_va("bottom")
-        ax.set_title(title, loc="left", fontweight="bold", fontsize=title_fs, pad=34)
-        fig.tight_layout()
-    return fig
+    return finish(fig, ax, 4)
 
 
-# ------------------------------------------------- FIG4: annual net returns
-def fig_annual(figsize=(10, 4.4)):
+# ------------------------------------------------- FIG5: annual net returns
+def fig_annual():
     net = PORT["overlay"].net
     years = sorted(set(d[:4] for d in all_days))
     ann = [net[[d for d in all_days if d.startswith(y)]].sum() / CAPITAL * 100
            for y in years]
     labels = [y if y != "2024" else "2024*" for y in years]
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = chart(10, 4.4)
     ax.bar(labels, ann, color=[OVERLAY if v >= 0 else BASELINE for v in ann],
            width=0.72, zorder=3)
     ax.axhline(0, color=INK, lw=1.3, zorder=4)
@@ -243,11 +224,10 @@ def fig_annual(figsize=(10, 4.4)):
            "2001–2024 (*2024 through 03-28) · % of $500K capital · net of costs")
     ax.set_ylabel("% of capital")
     ax.tick_params(axis="x", rotation=60)
-    fig.tight_layout()
-    return fig
+    return finish(fig, ax, 5)
 
 
-# ------------------------------------ FIG_summary_table: factsheet summary
+# ------------------------------------------------ FIG1: factsheet summary table
 # Every value is parsed from the committed strategy_results.md (the `snapshot`
 # text) so the table cannot drift from the report; a format change there
 # fails loudly here instead of rendering a stale number.
@@ -305,36 +285,27 @@ GROUPS = [
                             ("Turnover", f"~{cost_mean[4]} contracts/yr")]),
 ]
 PNL_COLS = sorted(pnl.items(), key=lambda kv: -kv[1])
-CAPTION = ("Figure 1.", " Backtest summary, 2001–2024, $500K, "
-           "net of modeled costs.")
 
-# Printed-table styling: serif (the report body face), black on white only,
-# booktabs-style three rules (above the header, below it, below the body) plus
-# thin separators between the four column groups; the two sub-tables get the
-# same three-rule treatment as independent tables. Layout in inches from the
-# top-left corner; 150 dpi via rcParams.
-FONT = "Times New Roman"          # Regular, Bold and Italic faces installed
-BLACK = "#000000"
+# Printed-table styling: serif, black on white only, booktabs-style three rules
+# (above the header, below it, below the body) plus thin separators between the
+# four column groups; the two sub-tables get the same three-rule treatment as
+# independent tables. Layout in inches from the top-left corner.
 OUTER, INNER = 0.8, 0.5           # rule weights (pt): top/bottom vs mid/vertical
+FS_H, FS_B = 10, 9.5              # header / body point sizes
 ROW = 0.225                       # body row pitch
 
 
-def fig_summary_table(width=9.4, margin=0.45, fs_h=10, fs_b=9.5, fs_cap=9.5,
-                      y_top=0.28, pad_bottom=0.28):
-    """The figure's height follows from its content; width/margins/type sizes
-    are parameters so the page assembly can set it in a narrower slot."""
-    W = width
-    L, R = margin, W - margin
+def fig_summary_table():
+    W = 9.4
+    L, R = 0.45, W - 0.45
     PAD = 0.10
-
-    # main table: four groups side by side
     gw = (R - L) / len(GROUPS)
+    y_top = 0.28
     y_head = y_top + 0.15             # header row centre
     y_mid = y_head + 0.15
     y_row0 = y_mid + 0.15
     y_bot = y_row0 + (len(GROUPS[0][1]) - 1) * ROW + 0.14
-    # two compact sub-tables side by side, each its own three-rule table
-    y_top2 = y_bot + 0.26
+    y_top2 = y_bot + 0.26             # sub-tables
     y_head2 = y_top2 + 0.15
     y_mid2 = y_head2 + 0.15
     y_lab2 = y_mid2 + 0.15
@@ -343,14 +314,13 @@ def fig_summary_table(width=9.4, margin=0.45, fs_h=10, fs_b=9.5, fs_cap=9.5,
     GAP = 0.35
     x_split = L + (R - L - GAP) * 0.46       # room for the 2021–2024.03 label
     y_cap = y_bot2 + 0.30
-    H = round(y_cap + pad_bottom, 4)
+    H = round(y_cap + 0.28, 4)
 
     fig = plt.figure(figsize=(W, H))
     X = lambda x: x / W
     Y = lambda y: 1 - y / H
 
     def txt(x, y, s, **kw):
-        kw.setdefault("fontfamily", FONT)
         kw.setdefault("color", BLACK)
         return fig.text(X(x), Y(y), s, **kw)
 
@@ -365,13 +335,12 @@ def fig_summary_table(width=9.4, margin=0.45, fs_h=10, fs_b=9.5, fs_cap=9.5,
         x0, x1 = L + g * gw, L + (g + 1) * gw
         if g:
             rule(x0, y_top, x0, y_bot, INNER)
-        txt(x0 + PAD, y_head, title, fontsize=fs_h, fontweight="bold", va="center")
+        txt(x0 + PAD, y_head, title, fontsize=FS_H, fontweight="bold", va="center")
         for i, (name, val) in enumerate(rows):
             y = y_row0 + i * ROW
-            txt(x0 + PAD, y, name, fontsize=fs_b, va="center")
-            txt(x1 - PAD, y, val, fontsize=fs_b, fontweight="bold", ha="right",
+            txt(x0 + PAD, y, name, fontsize=FS_B, va="center")
+            txt(x1 - PAD, y, val, fontsize=FS_B, fontweight="bold", ha="right",
                 va="center")
-
     for title, cols, x0, x1 in [
             ("Sub-period net Sharpe", sub_sharpe, L, x_split),
             ("Per-market net P&L ($K)", [(p, f"{v:.1f}") for p, v in PNL_COLS],
@@ -379,33 +348,87 @@ def fig_summary_table(width=9.4, margin=0.45, fs_h=10, fs_b=9.5, fs_cap=9.5,
         rule(x0, y_top2, x1, y_top2, OUTER)
         rule(x0, y_mid2, x1, y_mid2, INNER)
         rule(x0, y_bot2, x1, y_bot2, OUTER)
-        txt(x0 + PAD, y_head2, title, fontsize=fs_h, fontweight="bold", va="center")
+        txt(x0 + PAD, y_head2, title, fontsize=FS_H, fontweight="bold", va="center")
         cw = (x1 - x0 - 2 * PAD) / len(cols)
         for j, (lab, val) in enumerate(cols):
             xr = x0 + PAD + (j + 1) * cw
-            txt(xr, y_lab2, lab, fontsize=fs_b, ha="right", va="center")
-            txt(xr, y_val2, val, fontsize=fs_b, fontweight="bold", ha="right",
+            txt(xr, y_lab2, lab, fontsize=FS_B, ha="right", va="center")
+            txt(xr, y_val2, val, fontsize=FS_B, fontweight="bold", ha="right",
                 va="center")
-
-    # caption: italic serif throughout, label then text, left-aligned
-    lead = txt(L, y_cap, CAPTION[0], fontsize=fs_cap, fontstyle="italic",
-               va="baseline")
-    fig.canvas.draw()
-    bb = lead.get_window_extent(fig.canvas.get_renderer())
-    x_after = fig.transFigure.inverted().transform((bb.x1, 0))[0]
-    txt(x_after * W, y_cap, CAPTION[1], fontsize=fs_cap, fontstyle="italic",
-        va="baseline")
+    txt(L, y_cap, CAPTIONS[1], fontsize=CAP_FS, fontstyle="italic", va="baseline")
     return fig
 
 
+# ------------------------------------------------ FIG6 / FIG7: code excerpts
+# Verbatim lines of the committed script, dedented for display and tokenized
+# with pygments; "highlighting" is grayscale — weight and shade instead of hue.
+CODE_FS = 9
+CODE_STYLE = [
+    (Token.Keyword, dict(fontweight="bold", color=BLACK)),
+    (Token.Operator.Word, dict(fontweight="bold", color=BLACK)),   # and, or, not, in, is
+    (Token.Comment, dict(fontstyle="italic", color=FAINT)),
+    (Token.Literal.String, dict(color=MARK)),
+]
+
+
+def token_style(ttype):
+    for t, st in CODE_STYLE:
+        if ttype in t:
+            return st
+    return dict(color=OVERLAY)
+
+
+def fig_code(n, rel_path, first, last):
+    lines = (REPO / rel_path).read_text().splitlines()[first - 1:last]
+    lines = textwrap.dedent("\n".join(lines)).split("\n")
+    # monospace advance, measured
+    probe = plt.figure(figsize=(1, 1))
+    t = probe.text(0, 0, "M" * 20, fontfamily=MONO, fontsize=CODE_FS)
+    cw = t.get_window_extent(probe.canvas.get_renderer()).width / 20 / probe.dpi
+    plt.close(probe)
+    LH = CODE_FS * 1.45 / 72                 # line pitch, inches
+    ML, MT, GUT = 0.35, 0.30, 5               # margins (in) and gutter (chars)
+    W = max(6.5, 2 * ML + (GUT + max(map(len, lines))) * cw)
+    y0 = MT + 0.30                            # first code baseline
+    H = round(y0 + (len(lines) - 1) * LH + 0.10 + CAP_STRIP, 3)
+    fig = plt.figure(figsize=(W, H))
+    X = lambda x: x / W
+    Y = lambda y: 1 - y / H
+    fig.text(X(ML), Y(MT), f"{rel_path}, lines {first}–{last}", fontsize=8.5,
+             fontstyle="italic", color=FAINT, va="baseline")
+    for k, line in enumerate(lines):
+        y = y0 + k * LH
+        fig.text(X(ML + (GUT - 1.5) * cw), Y(y), str(first + k), fontfamily=MONO,
+                 fontsize=CODE_FS, color="#999999", ha="right", va="baseline")
+        col = 0
+        for ttype, text in lex(line, PythonLexer()):
+            text = text.rstrip("\n")
+            if text.strip():
+                fig.text(X(ML + (GUT + col) * cw), Y(y), text, fontfamily=MONO,
+                         fontsize=CODE_FS, va="baseline", **token_style(ttype))
+            col += len(text)
+    fig.text(X(ML), CAP_BASE / H, CAPTIONS[n], fontsize=CAP_FS, fontstyle="italic",
+             color=BLACK, va="baseline")
+    return fig
+
+
+# sigma = max(realized, margin-implied) -> contract target, de-risk halving,
+# integer rounding (inside run_market's weekly loop)
+FIG6_SRC = ("scripts/backtest_path2.py", 253, 266)
+# maintenance level on a business-day grid, the >=5% five-day cumulative
+# increase test, and the 10-trading-day anchor clustering (qualifying_events)
+FIG7_SRC = ("scripts/backtest_path2.py", 151, 168)
+
 if __name__ == "__main__":
-    for make, name in ((fig_equity, "FIG1_equity.png"),
-                       (fig_drawdown, "FIG2_drawdown.png"),
-                       (fig_si2011, "FIG3_si2011.png"),
-                       (fig_annual, "FIG4_annual.png"),
-                       (fig_summary_table, "FIG_summary_table.png")):
+    for make, name in ((fig_summary_table, "FIG1_summary.png"),
+                       (fig_equity, "FIG2_equity.png"),
+                       (fig_drawdown, "FIG3_drawdown.png"),
+                       (fig_si2011, "FIG4_si2011.png"),
+                       (fig_annual, "FIG5_annual.png"),
+                       (lambda: fig_code(6, *FIG6_SRC), "FIG6_sizing_code.png"),
+                       (lambda: fig_code(7, *FIG7_SRC), "FIG7_event_code.png")):
         fig = make()
         fig.savefig(REPO / name)
         plt.close(fig)
-    print("wrote FIG1_equity, FIG2_drawdown, FIG3_si2011, FIG4_annual, "
-          "FIG_summary_table (.png)")
+    print("wrote FIG1_summary, FIG2_equity, FIG3_drawdown, FIG4_si2011, "
+          "FIG5_annual, FIG6_sizing_code, FIG7_event_code (.png)")
