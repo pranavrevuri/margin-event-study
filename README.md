@@ -40,6 +40,8 @@ internally and preserves the report sections already appended):
    full sample and the leave-one-market-out table
 8. `scripts/exhibit_restyle.py` — FIG1–FIG4 and FIG_summary_table PNGs assembled in
    [exhibits.md](exhibits.md)
+9. `scripts/exhibits_page.py` — the five exhibits re-rendered at slot size on one
+   US Letter page (EXHIBITS_PAGE.png), with a legibility audit
 
 ## Where the data comes from
 
