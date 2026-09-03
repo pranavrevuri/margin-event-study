@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
 """
-Packaging only — assembles the five exhibits on one US Letter portrait page
-(EXHIBITS_PAGE.png, 1275 x 1650 px at 150 dpi, ~0.75 in margins) for pasting
-into a document. No strategy logic, no data changes.
+Packaging only — stacks the exhibits full width, in order, on a US Letter-width
+page (8.5 in wide, 150 dpi, ~0.75 in margins) for pasting into a document. No
+strategy logic, no data changes.
 
-Each exhibit is RE-RENDERED at its slot size by the figure functions in
-scripts/exhibit_restyle.py (which reruns the committed backtest unchanged and
-writes no PNGs when loaded this way), so text keeps its designed point size
-instead of being downscaled with the image. The only per-figure adaptations
-are the fitting hooks those functions expose: legend placement, tick spacing,
-header size, episode-label de-collision, and the table's type size/margins.
-Captions for Figures 2-5 are read from exhibits.md and set like the summary
-table's caption (Times New Roman italic); Figure 1 carries its own.
+Each exhibit is RE-RENDERED at the content width and at its native aspect
+ratio by the figure functions in scripts/exhibit_restyle.py (which reruns the
+committed backtest unchanged and writes no PNGs when loaded this way), so text
+keeps its designed point size instead of being downscaled with the image. The
+only per-figure adaptations are the fitting hooks those functions expose:
+legend placement and header size for the drawdown chart, its episode-label
+de-collision, and the table's type size and margins. Captions for Figures 2-5
+come from exhibits.md and are set like the summary table's caption (Times New
+Roman italic); Figure 1 carries its own.
 
-A legibility audit runs on every rendered figure — minimum font size, text
-clipped at the image edge, overlapping text — and is printed; the exit status
-is 1 if it fails, so a bad page never passes silently.
+The page runs as tall as the content needs (default), or --pages auto splits
+it into US Letter pages without breaking a figure across pages. A legibility
+audit (minimum font size, text clipped at the image edge, overlapping text)
+runs on every rendered figure and the exit status is 1 if it fails.
 
-Usage: exhibits_page.py [--layout SPEC] [--out PATH]
-  --layout  rows top to bottom, "/" between rows, "," for side by side, e.g.
-            "1/2/3,4/5". Default "1/2/3/5": Figure 4 (the SI-2011 diagnostic)
-            is left off because beside Figure 3 at half width both charts fail
-            the audit, and five full-width rows leave every chart too short.
+Usage: exhibits_page.py [--layout SPEC] [--pages 1|auto] [--out PATH]
+  --layout  rows top to bottom, "/" between rows, "," for side by side
+            (default "1/2/3/4/5": everything full width, in order)
+  --pages   1 = one page as tall as needed (default); auto = US Letter pages,
+            written as <out>_1.png, <out>_2.png, ... when more than one
 """
 import argparse
+import inspect
 import io
 import re
 import runpy
@@ -39,20 +42,20 @@ from matplotlib.transforms import IdentityTransform
 
 REPO = Path(__file__).resolve().parent.parent
 DPI = 150
-PAGE_W, PAGE_H = 1275, 1650             # US Letter portrait at 150 dpi
+PAGE_W, LETTER_H = 1275, 1650           # US Letter portrait at 150 dpi
 MARGIN = 112                            # ~0.75 in
-CONTENT_W, CONTENT_H = PAGE_W - 2 * MARGIN, PAGE_H - 2 * MARGIN
+CONTENT_W = PAGE_W - 2 * MARGIN
+LETTER_CONTENT_H = LETTER_H - 2 * MARGIN
 ROW_GAP, COL_GAP = 20, 30               # px between rows / between side-by-side slots
 SERIF, FS_CAP = "Times New Roman", 9.5  # caption face and size, as in the summary table
 LINE_H, CAP_GAP = 25, 8                 # caption line pitch / gap above a caption, px
 MIN_PT = 7.0                            # legibility floor for any text on the page
-LAYOUT = "1/2/3/5"                      # see the docstring for why Figure 4 is off
-WEIGHT = {2: 0.9, 3: 1.05, 4: 1.05, 5: 0.95}   # relative slot heights for the chart
-# rows: the drawdown chart carries a label band inside the axes and the bar
-# chart carries rotated year labels, so both need more height than the equity curve
+LAYOUT = "1/2/3/4/5"
+FUNC = {2: "fig_equity", 3: "fig_drawdown", 4: "fig_si2011", 5: "fig_annual"}
 
 ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
 ap.add_argument("--layout", default=LAYOUT, help='e.g. "1/2/3,4/5" (Figures 3 and 4 side by side)')
+ap.add_argument("--pages", default="1", choices=["1", "auto"])
 ap.add_argument("--out", default=str(REPO / "EXHIBITS_PAGE.png"))
 args = ap.parse_args()
 layout = [[int(f) for f in row.split(",")] for row in args.layout.split("/")]
@@ -67,23 +70,24 @@ CAPTIONS = {int(n): " ".join(body.split()) for n, body in
             re.findall(r"^\*\*Figure (\d+)\.\*\* (.+?)(?=\n\n|\Z)", md, re.M | re.S)}
 
 
-def render(fid, w_px, h_px=None):
-    """Re-render exhibit `fid` for a w_px x h_px slot (the table sets its own height)."""
+def native_size(fid):
+    """The standard exhibit's figsize, read off the function's default."""
+    return inspect.signature(EX[FUNC[fid]]).parameters["figsize"].default
+
+
+def render(fid, w_px):
+    """Re-render exhibit `fid` at w_px wide: the table at its natural height,
+    the charts at their native aspect ratio."""
     w_in = w_px / DPI
-    narrow = w_px < 0.6 * CONTENT_W                # a half-width slot
     if fid == 1:
         return EX["fig_summary_table"](width=w_in, margin=0.02, fs_h=9, fs_b=8.5,
                                        fs_cap=FS_CAP, y_top=0.04, pad_bottom=0.06)
-    size = (w_in, h_px / DPI)
-    if fid == 2:
-        return EX["fig_equity"](figsize=size)
-    if fid == 3:
-        return EX["fig_drawdown"](figsize=size, legend="subtitle", title_fs=11)
-    if fid == 4:
-        return EX["fig_si2011"](figsize=size, month_step=6 if narrow else 3, title_fs=11)
-    if fid == 5:
-        return EX["fig_annual"](figsize=size)
-    raise ValueError(fid)
+    nw, nh = native_size(fid)
+    kw = {}
+    if fid == 3 and w_in < 9:
+        # below ~9 in the header band cannot hold title and legend side by side
+        kw = dict(legend="subtitle", title_fs=11)
+    return EX[FUNC[fid]](figsize=(w_in, w_in * nh / nw), **kw)
 
 
 def tick_texts(axis):
@@ -166,14 +170,15 @@ def to_array(fig):
     return plt.imread(buf)
 
 
-page = plt.figure(figsize=(PAGE_W / DPI, PAGE_H / DPI), dpi=DPI)
-renderer = page.canvas.get_renderer()
+# --- caption typesetting (measured on a scratch canvas at page dpi)
+meas = plt.figure(figsize=(1, 1), dpi=DPI)
+renderer = meas.canvas.get_renderer()
 CAP_KW = dict(transform=IdentityTransform(), fontfamily=SERIF, fontsize=FS_CAP,
               fontstyle="italic", color="black", va="baseline")   # italic serif throughout
 
 
-def text_w(s, **kw):
-    t = page.text(0, 0, s, **CAP_KW, **kw)
+def text_w(s):
+    t = meas.text(0, 0, s, **CAP_KW)
     w = t.get_window_extent(renderer).width
     t.remove()
     return w
@@ -199,58 +204,73 @@ def wrap(fid, width_px):
     return label, lines
 
 
-def draw_caption(x, y_top, label, lines):
-    y = PAGE_H - (y_top + 20)            # first baseline; display origin is bottom-left
+def draw_caption(page, page_h, x, y_top, label, lines):
+    y = page_h - (y_top + 20)            # first baseline; display origin is bottom-left
     page.text(x, y, label, **CAP_KW)
     page.text(x + text_w(label) + SPACE_W, y, lines[0], **CAP_KW)
     for i, ln in enumerate(lines[1:], 1):
         page.text(x, y - i * LINE_H, ln, **CAP_KW)
 
 
-# --- vertical budget: the table takes its natural height, chart rows share
-# what is left in proportion to WEIGHT, after captions and gaps are set aside
-slots = {}
+# --- render every row: images at native aspect, captions wrapped to slot width
+problems, rows = [], []
 for row in layout:
     w = (CONTENT_W - COL_GAP * (len(row) - 1)) // len(row)
+    imgs, caps = [], []
     for j, fid in enumerate(row):
-        slots[fid] = (MARGIN + j * (w + COL_GAP), w)
-table_fig = render(1, slots[1][1]) if 1 in slots else None
-table_h = int(round(table_fig.get_figheight() * DPI)) if table_fig else 0
-caps = {fid: wrap(fid, slots[fid][1]) for fid in slots if fid != 1}
-row_cap = [max((CAP_GAP + LINE_H * len(caps[f][1])) if f != 1 else 0 for f in row)
-           for row in layout]
-avail = CONTENT_H - table_h - sum(row_cap) - ROW_GAP * (len(layout) - 1)
-wsum = sum(max(WEIGHT[f] for f in row) for row in layout if 1 not in row)
-row_h = [table_h if 1 in row else int(avail * max(WEIGHT[f] for f in row) / wsum)
-         for row in layout]
-if avail <= 0:
-    sys.exit(f"no vertical room left for the charts ({avail} px)")
-
-# --- compose, top to bottom
-problems = []
-y = MARGIN
-for row, h, cap_h in zip(layout, row_h, row_cap):
-    for fid in row:
-        x, w = slots[fid]
-        fig = table_fig if fid == 1 else render(fid, w, h)
+        x = MARGIN + j * (w + COL_GAP)
+        fig = render(fid, w)
         problems += audit(fig, f"Figure {fid}")
         arr = to_array(fig)
         plt.close(fig)
-        ah, aw = arr.shape[:2]
-        page.figimage(arr, xo=x, yo=PAGE_H - (y + ah), origin="upper")
+        imgs.append((fid, x, arr))
         if fid != 1:
-            draw_caption(x, y + ah, *caps[fid])
-        print(f"Figure {fid}: {aw}x{ah} px at ({x}, {y})"
-              + (f", caption {len(caps[fid][1])} line(s)" if fid != 1 else ""))
-    y += h + cap_h + ROW_GAP
+            caps.append((fid, x, *wrap(fid, w)))
+        print(f"Figure {fid}: {arr.shape[1]}x{arr.shape[0]} px"
+              + (f", caption {len(caps[-1][3])} line(s)" if fid != 1 else ""))
+    rows.append(dict(imgs=imgs, caps=caps,
+                     h=max(a.shape[0] for _, _, a in imgs),
+                     cap_h=max([CAP_GAP + LINE_H * len(lines) for *_, lines in caps], default=0)))
 
+
+def paginate(rows, limit):
+    """Greedy fill of Letter pages; a row is never split across pages."""
+    pages, cur, y = [], [], 0
+    for r in rows:
+        block = r["h"] + r["cap_h"]
+        if cur and y + ROW_GAP + block > limit:
+            pages.append(cur)
+            cur, y = [], 0
+        y += (ROW_GAP if cur else 0) + block
+        cur.append(r)
+    pages.append(cur)
+    return pages
+
+
+pages = paginate(rows, LETTER_CONTENT_H) if args.pages == "auto" else [rows]
 out = Path(args.out)
-page.savefig(out, dpi=DPI, facecolor="white")
-print(f"wrote {out} ({PAGE_W}x{PAGE_H} px, layout {layout})")
+names = ([out] if len(pages) == 1 else
+         [out.with_name(f"{out.stem}_{i + 1}{out.suffix}") for i in range(len(pages))])
+for rows_on_page, name in zip(pages, names):
+    content_h = sum(r["h"] + r["cap_h"] for r in rows_on_page) + ROW_GAP * (len(rows_on_page) - 1)
+    page_h = LETTER_H if args.pages == "auto" else max(LETTER_H, content_h + 2 * MARGIN)
+    page = plt.figure(figsize=((PAGE_W + 0.01) / DPI, (page_h + 0.01) / DPI), dpi=DPI)
+    y = MARGIN
+    for r in rows_on_page:
+        for fid, x, arr in r["imgs"]:
+            page.figimage(arr, xo=x, yo=page_h - (y + arr.shape[0]), origin="upper")
+        for fid, x, label, lines in r["caps"]:
+            draw_caption(page, page_h, x, y + r["h"], label, lines)
+        y += r["h"] + r["cap_h"] + ROW_GAP
+    page.savefig(name, dpi=DPI, facecolor="white")
+    plt.close(page)
+    figs = [f for r in rows_on_page for f, _, _ in r["imgs"]]
+    print(f"wrote {name} ({PAGE_W}x{page_h} px = {PAGE_W / DPI:.1f}x{page_h / DPI:.2f} in; "
+          f"figures {figs})")
+
 if problems:
     print(f"LEGIBILITY: FAIL — {len(problems)} problem(s)")
     for p in problems:
         print("  -", p)
     sys.exit(1)
-print("LEGIBILITY: PASS (no text below "
-      f"{MIN_PT}pt, nothing clipped, nothing overlapping)")
+print(f"LEGIBILITY: PASS (no text below {MIN_PT}pt, nothing clipped, nothing overlapping)")

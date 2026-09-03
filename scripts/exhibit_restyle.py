@@ -79,7 +79,7 @@ SUB_FULL = ("2001-01-02 – 2024-03-28 · 9 CME futures markets · $500K capital
 
 def headed(ax, title, sub, title_fs=12.5, pad=24):
     ax.set_title(title, loc="left", fontweight="bold", fontsize=title_fs, pad=pad)
-    ax.text(0.0, 1.035, sub, transform=ax.transAxes, fontsize=8.5, color=FAINT)
+    return ax.text(0.0, 1.035, sub, transform=ax.transAxes, fontsize=8.5, color=FAINT)
 
 
 def date_axis(ax, years=2):
@@ -119,19 +119,20 @@ EPISODES = [("1st worst −9.4%", "Jul 2008–Feb 2010", "2008-07-02", "2010-02-
 
 
 def decollide(fig, ax, labels, gap_px=4):
-    """Sweep the episode labels left to right and push any label that runs
-    into the previous one's box to its right. A no-op at the standard size,
-    where the labels already clear each other; only narrow renders move."""
+    """Sweep the episode labels left to right, starting at the axes' left
+    edge, and push any label that runs into the previous box (or past the
+    y-axis) to the right. A no-op at the standard size, where the labels
+    already clear each other and stay inside the axes; only narrow renders move."""
     fig.canvas.draw()
     r = fig.canvas.get_renderer()
-    prev = None
+    prev_x1 = ax.bbox.x0
     for t in sorted(labels, key=lambda t: t.get_position()[0]):
         bb = t.get_window_extent(r)
-        if prev is not None and bb.x0 < prev.x1 + gap_px:
-            x_px = (bb.x0 + bb.x1) / 2 + (prev.x1 + gap_px - bb.x0)
+        if bb.x0 < prev_x1 + gap_px:
+            x_px = (bb.x0 + bb.x1) / 2 + (prev_x1 + gap_px - bb.x0)
             t.set_x(ax.transData.inverted().transform((x_px, bb.y0))[0])
             bb = t.get_window_extent(r)
-        prev = bb
+        prev_x1 = bb.x1
 
 
 def fig_drawdown(figsize=(10, 4.6), legend="header", title_fs=12.5):
@@ -161,7 +162,8 @@ def fig_drawdown(figsize=(10, 4.6), legend="header", title_fs=12.5):
         # narrow renders: no room beside the title, so stack the legend on the
         # subtitle line, flush right above the axes
         ax.legend(loc="lower right", bbox_to_anchor=(1.0, 1.0), ncol=1,
-                  frameon=False, fontsize=9, borderaxespad=0, labelspacing=0.15)
+                  frameon=False, fontsize=9, borderaxespad=0, labelspacing=0.15,
+                  handlelength=1.2, handletextpad=0.5)   # clear of the subtitle
     date_axis(ax)
     ax.margins(x=0.02)
     fig.tight_layout()
@@ -204,16 +206,25 @@ def fig_si2011(figsize=(10, 4.6), month_step=3, title_fs=12.5):
         ax.step(wdt, VARIANTS[key][P].pos_after[win], where="post",
                 color=c, lw=lw, label=lbl)
     ax.axhline(0, color="#bbbbbb", lw=0.8)
-    headed(ax, "Margin-based sizing around the 2011 silver margin episode",
-           "SI position, contracts (fractional) · Sep 2010 – Mar 2012 · shaded: "
-           "10-day de-risk window after each qualifying margin hike",
-           title_fs=title_fs)
+    title = "Margin-based sizing around the 2011 silver margin episode"
+    sub = ("SI position, contracts (fractional) · Sep 2010 – Mar 2012 · shaded: "
+           "10-day de-risk window after each qualifying margin hike")
+    sub_text = headed(ax, title, sub, title_fs=title_fs)
     ax.set_ylabel("contracts")
     ax.legend(loc="lower left", frameon=False, fontsize=9)
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=month_step))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
     ax.margins(x=0.02)
     fig.tight_layout()
+    # fitting hook: if the one-line subtitle runs past the figure's right edge
+    # (it does below ~7.5 in), break it at the " · shaded:" separator and lift
+    # the title to make room. A no-op at the standard size.
+    fig.canvas.draw()
+    if sub_text.get_window_extent(fig.canvas.get_renderer()).x1 > fig.bbox.x1:
+        sub_text.set_text(sub.replace(" · shaded: ", "\nshaded: "))
+        sub_text.set_va("bottom")
+        ax.set_title(title, loc="left", fontweight="bold", fontsize=title_fs, pad=34)
+        fig.tight_layout()
     return fig
 
 

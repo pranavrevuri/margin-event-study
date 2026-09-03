@@ -40,8 +40,10 @@ internally and preserves the report sections already appended):
    full sample and the leave-one-market-out table
 8. `scripts/exhibit_restyle.py` — FIG1–FIG4 and FIG_summary_table PNGs assembled in
    [exhibits.md](exhibits.md)
-9. `scripts/exhibits_page.py` — exhibits re-rendered at slot size on one US Letter
-   page (EXHIBITS_PAGE.png; Figures 1, 2, 3, 5 by default), with a legibility audit
+9. `scripts/exhibits_page.py` — all five exhibits re-rendered at page width and
+   native aspect ratio, stacked on a US Letter-width page that runs as tall as
+   needed (EXHIBITS_PAGE.png; `--pages auto` for Letter pagination), with a
+   legibility audit
 
 ## Where the data comes from
 
