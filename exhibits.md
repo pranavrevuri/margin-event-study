@@ -12,8 +12,8 @@ and per-market net P&L beneath. Beta vs SPY (Yahoo, full sample 2001-01 –
 2024-03).
 
 ![Figure 2](FIG1_equity.png)
-**Figure 2.** Cumulative net P&L, overlay vs baseline, 2001–2024, $500K.
-Inset: net Sharpe and maximum drawdown per variant.
+**Figure 2.** Cumulative net P&L, overlay vs baseline, 2001–2024, $500K. Net
+Sharpe 0.67 (overlay) vs 0.64 (baseline); maximum drawdown −9.4% vs −11.4%.
 
 ![Figure 3](FIG2_drawdown.png)
 **Figure 3.** Drawdown from high-water mark, net, with the five worst overlay

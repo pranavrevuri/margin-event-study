@@ -39,13 +39,15 @@ CAPITAL = bt["CAPITAL"]
 PORT = bt["PORT"]
 VARIANTS = bt["VARIANTS"]
 all_days = bt["all_days"]
-metrics = bt["metrics"]
 events = bt["events"]
 td_shift = bt["td_shift"]
 
 # ------------------------------------------------------------- shared style
-NAVY = "#1b3a6b"          # overlay
-GRAY = "#9a9a9a"          # baseline / negatives
+# grayscale only: near-black overlay, medium-gray baseline, light-gray bands
+OVERLAY = "#1a1a1a"       # overlay series, positive bars
+BASELINE = "#8c8c8c"      # baseline series, negative bars
+MARK = "#555555"          # event markers and their labels
+SHADE = dict(color="#000000", alpha=0.08, lw=0)   # light gray shaded bands
 INK = "#333333"
 FAINT = "#777777"
 plt.rcParams.update({
@@ -86,26 +88,19 @@ def date_axis(ax, years=2):
 
 
 DT = pd.to_datetime(all_days)
-m_o = metrics(PORT["overlay"].net)
-m_b = metrics(PORT["baseline"].net)
 
 
 # ---------------------------------------------------- FIG1: cumulative net P&L
 def fig_equity(figsize=(10, 5.2)):
     fig, ax = plt.subplots(figsize=figsize)
-    for key, c, lw, lbl in [("overlay", NAVY, 2.0, "Overlay"),
-                            ("baseline", GRAY, 1.6, "Baseline")]:
+    for key, c, lw, lbl in [("overlay", OVERLAY, 2.0, "Overlay"),
+                            ("baseline", BASELINE, 1.6, "Baseline")]:
         y = PORT[key].net.cumsum() / CAPITAL * 100
         ax.plot(DT, y, color=c, lw=lw, label=lbl)
         ax.annotate(lbl, (DT[-1], y.iloc[-1]), xytext=(6, 0),
                     textcoords="offset points", color=c, fontsize=9.5,
                     fontweight="bold", va="center")
-    box = (f"{'':<9}{'Sharpe':>7}{'Max DD':>8}\n"
-           f"{'Overlay':<9}{m_o['sharpe']:>7.2f}{m_o['max_dd']*100:>7.1f}%\n"
-           f"{'Baseline':<9}{m_b['sharpe']:>7.2f}{m_b['max_dd']*100:>7.1f}%")
-    ax.text(0.025, 0.96, box, transform=ax.transAxes, fontsize=8.5,
-            fontfamily="monospace", va="top",
-            bbox=dict(boxstyle="round,pad=0.45", fc="white", ec="#cccccc", lw=0.8))
+    # Sharpe and max drawdown per variant are stated in the caption (exhibits.md)
     headed(ax, "Cumulative net P&L — overlay vs baseline", SUB_FULL)
     ax.set_ylabel("% of capital")
     date_axis(ax)
@@ -141,15 +136,15 @@ def decollide(fig, ax, labels, gap_px=4):
 
 def fig_drawdown(figsize=(10, 4.6), legend="header", title_fs=12.5):
     fig, ax = plt.subplots(figsize=figsize)
-    for key, c, lw, lbl in [("baseline", GRAY, 1.3, "Baseline"),
-                            ("overlay", NAVY, 1.8, "Overlay")]:
+    for key, c, lw, lbl in [("baseline", BASELINE, 1.3, "Baseline"),
+                            ("overlay", OVERLAY, 1.8, "Overlay")]:
         r = PORT[key].net.cumsum() / CAPITAL
         dd = ((r - r.cummax()) * 100).to_numpy(dtype=float)
         ax.plot(DT, dd, color=c, lw=lw, label=lbl)
     labels = []
     for line1, line2, peak, trough in EPISODES:
         t0, t1 = pd.to_datetime(peak), pd.to_datetime(trough)
-        ax.axvspan(t0, t1, color=NAVY, alpha=0.08, lw=0)
+        ax.axvspan(t0, t1, **SHADE)
         # anchor labels at the episode midpoint so adjacent episodes don't collide
         labels.append(ax.text(t0 + (t1 - t0) / 2, -12.3, f"{line1}\n{line2}",
                               ha="center", va="top", fontsize=7.4, color="#555555",
@@ -197,15 +192,15 @@ def fig_si2011(figsize=(10, 4.6), month_step=3, title_fs=12.5):
         t_end = td_shift(P, t_e, 10) or win[-1]
         if t_e is None or t_end < W0 or t_e > W1:
             continue
-        ax.axvspan(pd.to_datetime(t_e), pd.to_datetime(t_end), color=NAVY,
-                   alpha=0.09, lw=0, label="de-risk window [t0, t0+10]" if first else None)
-        ax.axvline(pd.to_datetime(t_e), color=NAVY, lw=0.8, ls=":", alpha=0.65)
+        ax.axvspan(pd.to_datetime(t_e), pd.to_datetime(t_end), **SHADE,
+                   label="de-risk window [t0, t0+10]" if first else None)
+        ax.axvline(pd.to_datetime(t_e), color=MARK, lw=0.8, ls=":", alpha=0.65)
         tr = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
         ax.text(pd.to_datetime(t_e), 0.99, f" hike eff. {d_e}", transform=tr,
-                rotation=90, va="top", ha="right", fontsize=7.2, color=NAVY)
+                rotation=90, va="top", ha="right", fontsize=7.2, color=MARK)
         first = False
-    for key, c, lw, lbl in [("baseline", GRAY, 1.5, "Baseline"),
-                            ("overlay", NAVY, 1.9, "Overlay")]:
+    for key, c, lw, lbl in [("baseline", BASELINE, 1.5, "Baseline"),
+                            ("overlay", OVERLAY, 1.9, "Overlay")]:
         ax.step(wdt, VARIANTS[key][P].pos_after[win], where="post",
                 color=c, lw=lw, label=lbl)
     ax.axhline(0, color="#bbbbbb", lw=0.8)
@@ -230,7 +225,7 @@ def fig_annual(figsize=(10, 4.4)):
            for y in years]
     labels = [y if y != "2024" else "2024*" for y in years]
     fig, ax = plt.subplots(figsize=figsize)
-    ax.bar(labels, ann, color=[NAVY if v >= 0 else GRAY for v in ann],
+    ax.bar(labels, ann, color=[OVERLAY if v >= 0 else BASELINE for v in ann],
            width=0.72, zorder=3)
     ax.axhline(0, color=INK, lw=1.3, zorder=4)
     headed(ax, "Annual net returns — overlay variant",
@@ -381,13 +376,14 @@ def fig_summary_table(width=9.4, margin=0.45, fs_h=10, fs_b=9.5, fs_cap=9.5,
             txt(xr, y_val2, val, fontsize=fs_b, fontweight="bold", ha="right",
                 va="center")
 
-    # caption: italic label, regular text flush after it, left-aligned
+    # caption: italic serif throughout, label then text, left-aligned
     lead = txt(L, y_cap, CAPTION[0], fontsize=fs_cap, fontstyle="italic",
                va="baseline")
     fig.canvas.draw()
     bb = lead.get_window_extent(fig.canvas.get_renderer())
     x_after = fig.transFigure.inverted().transform((bb.x1, 0))[0]
-    txt(x_after * W, y_cap, CAPTION[1], fontsize=fs_cap, va="baseline")
+    txt(x_after * W, y_cap, CAPTION[1], fontsize=fs_cap, fontstyle="italic",
+        va="baseline")
     return fig
 
 

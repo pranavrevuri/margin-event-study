@@ -10,16 +10,18 @@ writes no PNGs when loaded this way), so text keeps its designed point size
 instead of being downscaled with the image. The only per-figure adaptations
 are the fitting hooks those functions expose: legend placement, tick spacing,
 header size, episode-label de-collision, and the table's type size/margins.
-Captions for Figures 2-5 are read from exhibits.md and set in the summary
-table's caption style (Times New Roman, italic label); Figure 1 carries its own.
+Captions for Figures 2-5 are read from exhibits.md and set like the summary
+table's caption (Times New Roman italic); Figure 1 carries its own.
 
 A legibility audit runs on every rendered figure — minimum font size, text
 clipped at the image edge, overlapping text — and is printed; the exit status
 is 1 if it fails, so a bad page never passes silently.
 
-Usage: exhibits_page.py [--drop N[,N...]] [--out PATH]
-  --drop  leave these figure numbers off the page (a two-figure row collapses
-          to one full-width slot)
+Usage: exhibits_page.py [--layout SPEC] [--out PATH]
+  --layout  rows top to bottom, "/" between rows, "," for side by side, e.g.
+            "1/2/3,4/5". Default "1/2/3/5": Figure 4 (the SI-2011 diagnostic)
+            is left off because beside Figure 3 at half width both charts fail
+            the audit, and five full-width rows leave every chart too short.
 """
 import argparse
 import io
@@ -44,18 +46,16 @@ ROW_GAP, COL_GAP = 20, 30               # px between rows / between side-by-side
 SERIF, FS_CAP = "Times New Roman", 9.5  # caption face and size, as in the summary table
 LINE_H, CAP_GAP = 25, 8                 # caption line pitch / gap above a caption, px
 MIN_PT = 7.0                            # legibility floor for any text on the page
-LAYOUT = [[1], [2], [3, 4], [5]]        # rows, top to bottom; a row of two is side by side
+LAYOUT = "1/2/3/5"                      # see the docstring for why Figure 4 is off
 WEIGHT = {2: 0.9, 3: 1.05, 4: 1.05, 5: 0.95}   # relative slot heights for the chart
 # rows: the drawdown chart carries a label band inside the axes and the bar
 # chart carries rotated year labels, so both need more height than the equity curve
 
 ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-ap.add_argument("--drop", default="", help="figure numbers to leave off, e.g. 4 or 4,5")
+ap.add_argument("--layout", default=LAYOUT, help='e.g. "1/2/3,4/5" (Figures 3 and 4 side by side)')
 ap.add_argument("--out", default=str(REPO / "EXHIBITS_PAGE.png"))
 args = ap.parse_args()
-drop = {int(x) for x in args.drop.split(",") if x.strip()}
-layout = [[f for f in row if f not in drop] for row in LAYOUT]
-layout = [row for row in layout if row]
+layout = [[int(f) for f in row.split(",")] for row in args.layout.split("/")]
 
 # figure functions (+ the backtest rerun they need); __name__ != "__main__"
 # inside run_path, so the standard PNGs are not rewritten
@@ -169,7 +169,7 @@ def to_array(fig):
 page = plt.figure(figsize=(PAGE_W / DPI, PAGE_H / DPI), dpi=DPI)
 renderer = page.canvas.get_renderer()
 CAP_KW = dict(transform=IdentityTransform(), fontfamily=SERIF, fontsize=FS_CAP,
-              color="black", va="baseline")
+              fontstyle="italic", color="black", va="baseline")   # italic serif throughout
 
 
 def text_w(s, **kw):
@@ -184,9 +184,9 @@ SPACE_W = text_w("x x") - text_w("xx")
 
 def wrap(fid, width_px):
     """Greedy word wrap of a chart caption to its slot width; the first line
-    starts after the italic 'Figure N.' label."""
+    starts after the 'Figure N.' label."""
     label = f"Figure {fid}."
-    avail = width_px - text_w(label, fontstyle="italic") - SPACE_W
+    avail = width_px - text_w(label) - SPACE_W
     lines, cur = [], ""
     for word in CAPTIONS[fid].split():
         trial = f"{cur} {word}".strip()
@@ -201,8 +201,8 @@ def wrap(fid, width_px):
 
 def draw_caption(x, y_top, label, lines):
     y = PAGE_H - (y_top + 20)            # first baseline; display origin is bottom-left
-    page.text(x, y, label, fontstyle="italic", **CAP_KW)
-    page.text(x + text_w(label, fontstyle="italic") + SPACE_W, y, lines[0], **CAP_KW)
+    page.text(x, y, label, **CAP_KW)
+    page.text(x + text_w(label) + SPACE_W, y, lines[0], **CAP_KW)
     for i, ln in enumerate(lines[1:], 1):
         page.text(x, y - i * LINE_H, ln, **CAP_KW)
 
